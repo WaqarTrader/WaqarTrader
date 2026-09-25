@@ -80,16 +80,21 @@
     <div class="text-center mb-6">
       <div class="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center text-lg font-black text-white mb-3" style="background:linear-gradient(135deg,#d97706,#b45309)">WT</div>
       <h1 class="text-2xl font-black text-slate-900">WAQAR TRADER</h1>
-      <p class="text-xs font-bold tracking-widest uppercase mt-1" style="color:#b45309">Daultala</p>
-      <p class="text-xs text-slate-500 font-semibold mt-1">Cashier POS · Cloud</p>
+      <p class="text-xs font-bold tracking-widest uppercase mt-1" style="color:#b45309">DAULTALA</p>
+      <p class="text-xs text-slate-500 font-semibold mt-1">Cashier POS · Cloud · V2.0</p>
     </div>
     <div class="label">Username</div>
     <input id="in-user" class="mb-3" placeholder="username" autocomplete="username">
     <div class="label">Password</div>
-    <input id="in-pass" type="password" class="mb-4" placeholder="••••••••" autocomplete="current-password">
+    <div class="relative mb-4">
+      <input id="in-pass" type="password" class="w-full pr-10" placeholder="••••••••" autocomplete="current-password">
+      <button type="button" id="btn-toggle-pass" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 px-2 py-1" title="Show/Hide" tabindex="-1">
+        <i class="fa-solid fa-eye" id="icon-pass-eye"></i>
+      </button>
+    </div>
     <button id="btn-login" class="btn btn-primary w-full py-3">Login</button>
     <p id="login-err" class="text-red-600 text-xs text-center mt-3 hidden"></p>
-    <p class="text-[11px] text-slate-400 text-center mt-4">Version V1.0</p>
+    <p class="text-[11px] text-slate-400 text-center mt-4">Version V2.0</p>
   </div>
 </div>
 
@@ -101,6 +106,7 @@
       <div>
         <div class="font-black text-sm text-slate-900 flex items-center gap-2 flex-wrap">
           WAQAR TRADER <span class="text-amber-700 text-xs">DAULTALA</span>
+          <span class="text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-900 text-white">V2.0</span>
           <span id="live-status" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
             <span class="live-dot"></span>Chal raha hai
           </span>
@@ -440,7 +446,7 @@ let products = {};
 let customers = {};
 let bills = {};
 let cart = [];
-let shop = { name: "WAQAR TRADER DAULTALA", address: "", phone: "" };
+let shop = { name: "WAQAR TRADER", address: "DAULTALA", phone: "" };
 let payTarget = null;
 let nextSeq = 1001;
 let panelOpen = false;
@@ -518,8 +524,17 @@ function saveIdleMinutes(m) {
   updateIdleStatus();
   toast("Timeout set: " + idleMinutes + " min");
 }
+function persistLastActivity() {
+  try { localStorage.setItem("wt_last_activity", String(lastActivity)); } catch (e) {}
+}
+function loadLastActivity() {
+  const v = Number(localStorage.getItem("wt_last_activity") || 0);
+  return v > 0 ? v : Date.now();
+}
 function bumpActivity() {
+  if (!session) return;
   lastActivity = Date.now();
+  persistLastActivity();
   if (idleWarned) {
     idleWarned = false;
     const el = document.getElementById("idle-status");
@@ -554,16 +569,31 @@ let idleListenersOn = false;
 function startIdleWatch() {
   stopIdleWatch();
   loadIdleMinutes();
-  lastActivity = Date.now();
+  // restore last activity from storage (survives app close / background)
+  lastActivity = loadLastActivity();
+  // if already expired while app was closed, logout immediately
+  if (Date.now() - lastActivity >= idleMinutes * 60 * 1000) {
+    toast("Session expired — logged out (" + idleMinutes + " min idle)");
+    showLogin();
+    return;
+  }
   idleWarned = false;
   if (!idleListenersOn) {
     IDLE_EVENTS.forEach(ev => document.addEventListener(ev, bumpActivity, { passive: true }));
+    document.addEventListener("visibilitychange", onVisibilitySession);
+    window.addEventListener("focus", onVisibilitySession);
     idleListenersOn = true;
   }
-  idleCheckTimer = setInterval(checkIdle, 5000);
+  idleCheckTimer = setInterval(checkIdle, 3000);
   const minsInput = document.getElementById("idle-mins");
   if (minsInput) minsInput.value = idleMinutes;
   updateIdleStatus();
+  persistLastActivity();
+}
+function onVisibilitySession() {
+  if (!session) return;
+  // when tab/app comes back — re-check real-time idle against stored timestamp
+  checkIdle();
 }
 function stopIdleWatch() {
   if (idleCheckTimer) { clearInterval(idleCheckTimer); idleCheckTimer = null; }
@@ -580,6 +610,7 @@ function showLogin() {
   document.getElementById("sc-login").style.display = "flex";
   session = null;
   localStorage.removeItem("wt_user_session");
+  localStorage.removeItem("wt_last_activity");
   // detach
   db.ref("products").off();
   db.ref("customers").off();
@@ -614,6 +645,17 @@ function tick() {
   document.getElementById("sale-dt").textContent = new Date().toLocaleString();
 }
 
+document.getElementById("btn-toggle-pass").onclick = function () {
+  const inp = document.getElementById("in-pass");
+  const icon = document.getElementById("icon-pass-eye");
+  if (inp.type === "password") {
+    inp.type = "text";
+    if (icon) { icon.classList.remove("fa-eye"); icon.classList.add("fa-eye-slash"); }
+  } else {
+    inp.type = "password";
+    if (icon) { icon.classList.remove("fa-eye-slash"); icon.classList.add("fa-eye"); }
+  }
+};
 document.getElementById("btn-login").onclick = function () {
   const u = (document.getElementById("in-user").value || "").trim().toLowerCase();
   const p = document.getElementById("in-pass").value || "";
@@ -637,6 +679,8 @@ document.getElementById("btn-login").onclick = function () {
       lastLogin: now
     };
     localStorage.setItem("wt_user_session", JSON.stringify(session));
+    lastActivity = Date.now();
+    persistLastActivity();
     localStorage.setItem("wt_last_login", String(now));
     showApp();
     return;
@@ -671,6 +715,8 @@ document.getElementById("btn-login").onclick = function () {
       lastLogin: now
     };
     localStorage.setItem("wt_user_session", JSON.stringify(session));
+    lastActivity = Date.now();
+    persistLastActivity();
     localStorage.setItem("wt_last_login", String(now));
     showApp();
   }).catch(e => {
@@ -1033,6 +1079,7 @@ function addLine(pid) {
   let idx = cart.findIndex(x => x.productId === pid);
   if (idx >= 0) {
     cart[idx].qty++;
+    cart[idx].disc = 0; // V2.0 locked
   } else {
     cart.push({
       productId: pid,
@@ -1040,6 +1087,7 @@ function addLine(pid) {
       code: p.code || "",
       category: p.category || "",
       rate: Number(p.salePrice || 0),
+      // V2.0: line discount locked at 0
       qty: 1,
       disc: 0
     });
@@ -1073,12 +1121,12 @@ function renderCart() {
   }
   empty.classList.add("hidden");
   tb.innerHTML = cart.map((l, i) => {
-    const amt = l.rate * l.qty * (1 - l.disc / 100);
+    const amt = l.rate * l.qty * (1 - (l.disc || 0) / 100);
     return '<tr><td class="font-semibold">' + (l.name || "") + '<div class="text-[10px] text-slate-400">' + (l.code || "") + '</div></td>'
       + '<td class="text-xs text-slate-500">' + (l.category || "—") + '</td>'
       + '<td><input type="number" min="1" value="' + l.qty + '" data-i="' + i + '" data-f="qty" class="w-16 cart-i cart-qty"></td>'
-      + '<td>' + money(l.rate) + '</td>'
-      + '<td><input type="number" min="0" max="' + limit + '" step="0.1" value="' + l.disc + '" data-i="' + i + '" data-f="disc" class="w-16 cart-i"></td>'
+      + '<td><input type="number" min="0" step="0.01" value="' + l.rate + '" data-i="' + i + '" data-f="rate" class="w-20 cart-i cart-rate"></td>'
+      + '<td><input type="number" min="0" step="0.1" value="' + (l.disc || 0) + '" data-i="' + i + '" data-f="disc" class="w-16 cart-i bg-slate-100 text-slate-400" disabled title="Discount locked"></td>'
       + '<td class="font-bold cart-amt" data-i="' + i + '">' + money(amt) + '</td>'
       + '<td><button type="button" data-rm="' + i + '" class="text-red-500 text-xs font-bold">✕</button></td></tr>';
   }).join("");
@@ -1090,12 +1138,17 @@ function renderCart() {
       if (f === "qty") {
         cart[i].qty = Math.max(1, v || 1);
       }
+      if (f === "rate") {
+        cart[i].rate = Math.max(0, v);
+      }
       if (f === "disc") {
-        if (v > limit) { showError("Max " + limit + "%"); v = limit; inp.value = v; }
-        cart[i].disc = Math.max(0, v);
+        // locked in V2.0 — ignore edits
+        cart[i].disc = 0;
+        inp.value = 0;
+        return;
       }
       // Update amount cell without full re-render (keep focus)
-      const amt = cart[i].rate * cart[i].qty * (1 - cart[i].disc / 100);
+      const amt = cart[i].rate * cart[i].qty * (1 - (cart[i].disc || 0) / 100);
       const cell = tb.querySelector('.cart-amt[data-i="' + i + '"]');
       if (cell) cell.textContent = money(amt);
       calc();
@@ -1369,7 +1422,8 @@ function printBill(bill) {
   root.innerHTML =
     '<div style="font-family:Arial,Tahoma,sans-serif;width:100%;max-width:100%;margin:0;padding:4px 8px;color:#000;font-size:13px;line-height:1.4;box-sizing:border-box">'
     + '<div style="text-align:center;padding-bottom:8px;margin-bottom:8px;border-bottom:2px solid #111">'
-    + '<div style="font-size:22px;font-weight:900;letter-spacing:1px">' + (bill.shopName || shop.name || "Waqar Trader") + '</div>'
+    + '<div style="font-size:22px;font-weight:900;letter-spacing:1px">WAQAR TRADER</div>'
+    + '<div style="font-size:14px;font-weight:900;letter-spacing:3px;margin-top:2px">DAULTALA</div>'
     + ((bill.shopAddress || shop.address || bill.shopPhone || shop.phone)
       ? ('<div style="font-size:11px;color:#333;margin-top:3px">' + (bill.shopAddress || shop.address || "") + (bill.shopPhone || shop.phone ? (" | " + (bill.shopPhone || shop.phone)) : "") + '</div>')
       : '')
