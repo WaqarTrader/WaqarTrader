@@ -1,0 +1,1767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waqar Trader · Cashier POS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+  :root{
+    --bg:#f4f6f9; --card:#ffffff; --line:#e2e8f0; --text:#0f172a; --muted:#64748b;
+    --gold:#b45309; --goldbg:#fef3c7; --sky:#0369a1; --ok:#15803d; --bad:#b91c1c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  .screen{display:none!important}.screen.on{display:flex!important}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:10px;font-weight:700;font-size:13px;padding:10px 14px;cursor:pointer}
+  .btn:active{transform:scale(.98)}
+  .btn-primary{background:linear-gradient(135deg,#d97706,#b45309);color:#fff}
+  .btn-dark{background:#0f172a;color:#fff}
+  .btn-ghost{background:#fff;color:#334155;border:1px solid var(--line)}
+  .btn-danger{background:#fef2f2;color:var(--bad);border:1px solid #fecaca}
+  input,select,textarea{width:100%;background:#fff;border:1px solid #cbd5e1;border-radius:10px;color:var(--text);padding:10px 12px;font-size:14px;outline:none}
+  input:focus,select:focus{border-color:#d97706;box-shadow:0 0 0 3px rgba(217,119,6,.15)}
+  .label{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+  .nav-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:11px 12px;border-radius:10px;border:none;background:transparent;color:#475569;font-weight:600;font-size:13px;cursor:pointer}
+  .nav-item:hover{background:#f1f5f9}
+  .nav-item.on{background:#fff7ed;color:#b45309}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:10px;border-bottom:2px solid var(--line);background:#f8fafc}
+  td{padding:10px;border-bottom:1px solid #f1f5f9;font-size:13px}
+  .toast{position:fixed;bottom:20px;right:20px;z-index:300;padding:12px 16px;border-radius:10px;font-size:13px;font-weight:700;display:none;background:#0f172a;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+  .toast.on{display:block}
+  .modal{position:fixed;inset:0;z-index:200;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;padding:16px}
+  .modal.on{display:flex}
+  .modal-box{width:100%;max-width:420px;background:#fff;border-radius:14px;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.15)}
+  .err-modal{position:fixed;inset:0;z-index:400;background:rgba(15,23,42,.5);display:none;align-items:center;justify-content:center;padding:16px}
+  .err-modal.on{display:flex}
+  .err-box{width:100%;max-width:380px;background:#fff;border-radius:16px;padding:24px;box-shadow:0 24px 60px rgba(0,0,0,.2);text-align:center;border-top:4px solid #b91c1c}
+  .live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;margin-right:5px;animation:pulse-live 1.4s ease-in-out infinite}
+  @keyframes pulse-live{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.85)}}
+  .hdr-meta{font-size:11px;color:#64748b;line-height:1.35}
+  #product-panel{max-height:280px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+  #product-panel .pi{display:flex;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer;font-size:13px}
+  #product-panel .pi:hover,#product-panel .pi.sel{background:#fff7ed}
+  #product-panel .pi:last-child{border-bottom:none}
+  .conn{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .conn.ok{background:#dcfce7;color:#15803d}
+  .conn.bad{background:#fef2f2;color:#b91c1c}
+  @media print{
+    html, body{
+      background:#fff!important;margin:0!important;padding:0!important;
+      -webkit-print-color-adjust:exact;print-color-adjust:exact
+    }
+    body *{visibility:hidden!important}
+    #print-root, #print-root *{visibility:visible!important}
+    #print-root{
+      position:absolute!important;left:0!important;top:0!important;right:0!important;
+      width:100%!important;margin:0!important;padding:0!important;
+      display:block!important;background:#fff!important;z-index:99999!important
+    }
+    .no-print, header, nav, main, #sc-login, #sc-app, .toast, .modal, .err-modal{display:none!important;visibility:hidden!important}
+    @page{margin:6mm 5mm;size:auto}
+  }
+  #print-root{display:none}
+  .sup-bubble{max-width:85%;padding:10px 12px;border-radius:14px;font-size:13px;line-height:1.45}
+  .sup-me{background:linear-gradient(135deg,#d97706,#b45309);color:#fff;margin-left:auto;border-bottom-right-radius:4px}
+  .sup-them{background:#fff;border:1px solid #e2e8f0;margin-right:auto;border-bottom-left-radius:4px}
+  .sup-img{max-width:100%;border-radius:10px;margin-top:6px;display:block}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="sc-login" class="screen on min-h-screen items-center justify-center p-6" style="background:linear-gradient(160deg,#f8fafc,#e2e8f0)">
+  <div class="card w-full max-w-md p-8">
+    <div class="text-center mb-6">
+      <div class="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center text-lg font-black text-white mb-3" style="background:linear-gradient(135deg,#d97706,#b45309)">WT</div>
+      <h1 class="text-2xl font-black text-slate-900">WAQAR TRADER</h1>
+      <p class="text-xs font-bold tracking-widest uppercase mt-1" style="color:#b45309">Daultala</p>
+      <p class="text-xs text-slate-500 font-semibold mt-1">Cashier POS · Cloud</p>
+    </div>
+    <div class="label">Username</div>
+    <input id="in-user" class="mb-3" placeholder="username" autocomplete="username">
+    <div class="label">Password</div>
+    <input id="in-pass" type="password" class="mb-4" placeholder="••••••••" autocomplete="current-password">
+    <button id="btn-login" class="btn btn-primary w-full py-3">Login</button>
+    <p id="login-err" class="text-red-600 text-xs text-center mt-3 hidden"></p>
+    <p class="text-[11px] text-slate-400 text-center mt-4">Version V1.0</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="sc-app" class="screen flex-col min-h-screen">
+  <header class="no-print sticky top-0 z-40 px-5 py-3 flex items-center justify-between bg-white border-b border-slate-200">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black text-white" style="background:linear-gradient(135deg,#d97706,#b45309)">WT</div>
+      <div>
+        <div class="font-black text-sm text-slate-900 flex items-center gap-2 flex-wrap">
+          WAQAR TRADER <span class="text-amber-700 text-xs">DAULTALA</span>
+          <span id="live-status" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span class="live-dot"></span>Chal raha hai
+          </span>
+        </div>
+        <div class="hdr-meta">
+          Cashier · <span id="hdr-name">—</span> · <span id="connStatus" class="conn bad">Connecting…</span>
+          · Last login: <b id="hdr-last-login" class="text-slate-700">—</b>
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] font-bold px-2 py-1 rounded-full bg-amber-50 text-amber-800">Ctrl+S Save</span>
+      <button id="btn-out" class="btn btn-ghost text-xs">Logout</button>
+    </div>
+  </header>
+
+  <div class="flex flex-1 min-h-0">
+    <nav class="no-print w-48 shrink-0 p-3 space-y-1 border-r border-slate-200 bg-white">
+      <button class="nav-item on" data-p="sale"><i class="fa-solid fa-cart-shopping w-5 text-amber-600"></i> New Sale</button>
+      <button class="nav-item" data-p="bills"><i class="fa-solid fa-file-lines w-5 text-sky-600"></i> Bills</button>
+      <button class="nav-item" data-p="customers"><i class="fa-solid fa-users w-5 text-emerald-600"></i> Customers</button>
+      <button class="nav-item" data-p="products"><i class="fa-solid fa-box w-5 text-violet-600"></i> Products</button>
+      <button class="nav-item" data-p="summary"><i class="fa-solid fa-chart-column w-5 text-rose-600"></i> Summary</button>
+      <button class="nav-item" data-p="support"><i class="fa-solid fa-headset w-5 text-cyan-600"></i> Complaints</button>
+      <button class="nav-item" data-p="logs"><i class="fa-solid fa-scroll w-5 text-indigo-600"></i> Change Logs</button>
+    </nav>
+
+    <main class="flex-1 overflow-y-auto p-4">
+      <!-- SALE -->
+      <section id="pg-sale" class="pg">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h2 class="text-lg font-black text-slate-900">New Sale</h2>
+          <div class="text-xs text-slate-500">Bill <b id="sale-no" class="text-amber-700">—</b> · <span id="sale-dt">—</span></div>
+        </div>
+        <div class="grid xl:grid-cols-3 gap-4">
+          <div class="xl:col-span-2 space-y-3">
+            <div class="card p-4 space-y-3">
+              <div class="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <div class="label">Customer</div>
+                  <select id="sale-cust"></select>
+                </div>
+                <div class="flex items-end gap-2">
+                  <button type="button" id="btn-walkin" class="btn btn-ghost flex-1 text-xs">Local Customer</button>
+                  <button type="button" id="btn-new-cust" class="btn btn-ghost flex-1 text-xs text-emerald-700 border-emerald-200">+ Customer</button>
+                </div>
+              </div>
+              <div id="local-fields" class="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                <div class="flex items-center justify-between">
+                  <div class="text-xs font-bold text-slate-600 uppercase tracking-wide">Bill customer details (optional)</div>
+                  <label class="flex items-center gap-2 text-xs font-semibold text-slate-500 cursor-pointer">
+                    <input type="checkbox" id="skip-details" class="w-4 h-4"> Skip
+                  </label>
+                </div>
+                <div class="grid sm:grid-cols-3 gap-2" id="detail-inputs">
+                  <div><div class="label">Name</div><input id="bill-cname" placeholder="Name"></div>
+                  <div><div class="label">Phone</div><input id="bill-cphone" placeholder="Phone"></div>
+                  <div><div class="label">Address</div><input id="bill-caddr" placeholder="Address"></div>
+                </div>
+              </div>
+              <div>
+                <div class="label">Product search · type or click list</div>
+                <div class="flex gap-2">
+                  <input id="sale-search" class="flex-1" placeholder="Type name / code… Enter = add" autocomplete="off">
+                  <button type="button" id="btn-browse" class="btn btn-ghost text-xs whitespace-nowrap">Browse</button>
+                  <button type="button" id="btn-add-prod" class="btn btn-primary text-xs">Add</button>
+                </div>
+                <div class="text-[10px] text-slate-400 mt-1.5 font-semibold">Enter = Qty · Qty Enter = Paid · Paid Enter = Save · <b class="text-amber-700">F1</b> = Search</div>
+                <div id="product-panel" class="mt-2 hidden"></div>
+              </div>
+            </div>
+            <div class="card overflow-hidden">
+              <table>
+                <thead><tr><th>Item</th><th>Category</th><th>Qty</th><th>Rate</th><th>Disc%</th><th>Amount</th><th></th></tr></thead>
+                <tbody id="sale-lines"></tbody>
+              </table>
+              <div id="sale-empty" class="p-8 text-center text-slate-400 text-sm">Add products — search or browse list</div>
+            </div>
+          </div>
+
+          <!-- BILL SIDE TOTAL -->
+          <div class="space-y-3">
+            <div class="card p-4 sticky top-16">
+              <div class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Bill Total</div>
+              <div class="space-y-2 text-sm">
+                <div class="flex justify-between"><span class="text-slate-500">Items</span><span id="t-items" class="font-semibold">0</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">Subtotal</span><span id="t-sub" class="font-semibold">0.00</span></div>
+                <div>
+                  <div class="label">Bill discount % (max <span id="disc-max">5</span>)</div>
+                  <input id="t-disc" type="number" min="0" step="0.1" value="0">
+                </div>
+                <div class="flex justify-between text-lg font-black border-t border-slate-100 pt-2 mt-1">
+                  <span>Grand Total</span><span id="t-grand" class="text-amber-700">0.00</span>
+                </div>
+                <div>
+                  <div class="label">Paid</div>
+                  <div class="flex gap-2">
+                    <input id="t-paid" type="number" min="0" step="0.01" value="0" class="flex-1">
+                    <button type="button" id="btn-pay-full" class="btn btn-ghost text-xs whitespace-nowrap text-emerald-700 border-emerald-200">= Total</button>
+                  </div>
+                </div>
+                <div class="flex justify-between"><span class="text-slate-500">Balance / Udhaar</span><span id="t-bal" class="font-bold text-red-600">0.00</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">Exchange (باقی)</span><span id="t-exchange" class="font-bold text-emerald-700">0.00</span></div>
+                <div>
+                  <div class="label">Payment</div>
+                  <select id="t-pay">
+                    <option value="cash">Cash</option>
+                    <option value="bank">Bank</option>
+                    <option value="credit">Credit (Udhaar)</option>
+                  </select>
+                </div>
+                <div class="flex gap-2 mt-2">
+                  <button type="button" id="btn-hold" class="btn btn-ghost flex-1 text-xs">Hold</button>
+                  <button type="button" id="btn-resume" class="btn btn-ghost flex-1 text-xs">Resume</button>
+                </div>
+                <button id="btn-save" class="btn btn-primary w-full py-3 mt-2">Save & Print (Ctrl+S)</button>
+                <button type="button" id="btn-reprint-last" class="btn btn-ghost w-full text-xs mt-2">Reprint Last Bill</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="pg-bills" class="pg hidden">
+        <h2 class="text-lg font-black mb-3">Bills</h2>
+        <div class="flex flex-wrap gap-2 mb-3 items-center">
+          <input id="bill-q" class="max-w-xs" placeholder="Search bill / customer / cashier">
+          <input id="bill-date" type="date" class="max-w-[10rem]">
+          <button id="btn-today" class="btn btn-ghost text-xs">Today</button>
+          <button id="btn-all-bills" class="btn btn-ghost text-xs">All</button>
+        </div>
+        <div class="card overflow-hidden overflow-x-auto">
+          <table>
+            <thead><tr><th>Bill #</th><th>Date</th><th>Customer</th><th>Total</th><th>Paid</th><th>Method</th><th>Cashier</th><th></th></tr></thead>
+            <tbody id="bill-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="pg-customers" class="pg hidden">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-black">Customers</h2>
+          <button id="btn-cust-add" class="btn btn-primary text-sm">+ Add</button>
+        </div>
+        <input id="cust-q" class="max-w-sm mb-3" placeholder="Search name / phone">
+        <div class="card overflow-hidden">
+          <table>
+            <thead><tr><th>Name</th><th>Phone</th><th>Address</th><th>Balance</th><th></th></tr></thead>
+            <tbody id="cust-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="pg-products" class="pg hidden">
+        <h2 class="text-lg font-black mb-1">Products <span class="text-xs font-normal text-slate-400">(view only)</span></h2>
+        <input id="prod-q" class="max-w-sm mb-3" placeholder="Search">
+        <div class="card overflow-hidden">
+          <table>
+            <thead><tr><th>Name</th><th>Code</th><th>Category</th><th>Sale</th><th>Unit</th></tr></thead>
+            <tbody id="prod-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="pg-summary" class="pg hidden">
+        <h2 class="text-lg font-black mb-3">Daily Summary</h2>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4" id="sum-cards"></div>
+        <div class="card p-4 max-w-md">
+          <div class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Session timeout (idle logout)</div>
+          <p class="text-xs text-slate-500 mb-3">Agar aap kam chhod dein to itne minutes baad auto logout ho jayega. Kam karte rahein to timer reset hota rehta hai.</p>
+          <div class="flex items-end gap-2">
+            <div class="flex-1">
+              <div class="label">Minutes</div>
+              <input id="idle-mins" type="number" min="5" max="240" step="5" value="30">
+            </div>
+            <button type="button" id="idle-save" class="btn btn-primary text-sm">Save</button>
+          </div>
+          <div id="idle-status" class="text-[11px] text-slate-400 mt-2"></div>
+        </div>
+      </section>
+
+      <!-- COMPLAINTS / SUPPORT -->
+      <section id="pg-support" class="pg hidden">
+        <div class="max-w-lg mx-auto">
+          <!-- Welcome + options -->
+          <div id="sup-welcome">
+            <div class="card p-5 mb-4">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="w-14 h-14 rounded-2xl overflow-hidden border-2 border-cyan-400 shadow-lg flex-shrink-0" style="box-shadow:0 0 16px rgba(34,211,238,.35)">
+                  <img id="sup-dev-avatar" src="https://ui-avatars.com/api/?name=Eshaal&background=0891b2&color=fff&size=112" alt="Eshaal" class="w-full h-full object-cover">
+                </div>
+                <div>
+                  <div class="font-black text-slate-900">Complaints / Reports</div>
+                  <div class="text-xs text-slate-500">Developer · Eshaal</div>
+                </div>
+              </div>
+              <div class="rounded-xl bg-cyan-50 border border-cyan-100 p-4 text-sm text-slate-700 leading-relaxed mb-4">
+                <b>Assalam o Alaikum</b>, dear Waqar Trader — I'm <b>Eshaal</b>. I hope you're doing well.<br>
+                Hum aapki kya madad kar sakte hain?
+              </div>
+              <div class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Select issue type</div>
+              <div class="grid grid-cols-2 gap-2" id="sup-options">
+                <button type="button" data-issue="Product issue" class="btn btn-ghost text-sm py-3 border-amber-200 hover:bg-amber-50"><i class="fa-solid fa-box text-amber-600"></i> Product issue</button>
+                <button type="button" data-issue="Entry issue" class="btn btn-ghost text-sm py-3 border-sky-200 hover:bg-sky-50"><i class="fa-solid fa-keyboard text-sky-600"></i> Entry issue</button>
+                <button type="button" data-issue="Print issue" class="btn btn-ghost text-sm py-3 border-violet-200 hover:bg-violet-50"><i class="fa-solid fa-print text-violet-600"></i> Print issue</button>
+                <button type="button" data-issue="Other issue" class="btn btn-ghost text-sm py-3 border-rose-200 hover:bg-rose-50"><i class="fa-solid fa-circle-question text-rose-600"></i> Other issue</button>
+              </div>
+            </div>
+            <div class="card p-4">
+              <div class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Previous chats</div>
+              <div id="sup-history" class="space-y-2 text-sm"></div>
+            </div>
+          </div>
+
+          <!-- Chat room -->
+          <div id="sup-chat" class="hidden">
+            <div class="card overflow-hidden flex flex-col" style="height:calc(100vh - 140px);min-height:420px">
+              <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-3 bg-white">
+                <button type="button" id="sup-back" class="btn btn-ghost text-xs px-2"><i class="fa-solid fa-arrow-left"></i></button>
+                <div class="w-10 h-10 rounded-xl overflow-hidden border-2 border-cyan-400 flex-shrink-0">
+                  <img id="sup-chat-avatar" src="https://ui-avatars.com/api/?name=Eshaal&background=0891b2&color=fff&size=80" class="w-full h-full object-cover" alt="">
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="font-black text-sm text-slate-900">Eshaal · Developer</div>
+                  <div id="sup-chat-meta" class="text-[11px] text-slate-500">—</div>
+                </div>
+              </div>
+              <div id="sup-prompt" class="px-4 py-2 bg-amber-50 border-b border-amber-100 text-sm text-amber-900 text-center font-medium" style="font-family:Tahoma,'Noto Nastaliq Urdu',serif;direction:rtl">
+                براہ کرم اپنی شکایت مکمل تفصیل سے لکھیں۔
+              </div>
+              <div id="sup-msgs" class="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50"></div>
+              <div class="p-3 border-t border-slate-100 bg-white flex gap-2 items-center">
+                <label class="btn btn-ghost text-xs cursor-pointer px-3">
+                  <i class="fa-solid fa-image"></i>
+                  <input type="file" id="sup-img" accept="image/*" class="hidden">
+                </label>
+                <input id="sup-input" class="flex-1" placeholder="Type your message…">
+                <button type="button" id="sup-send" class="btn btn-primary text-sm px-4"><i class="fa-solid fa-paper-plane"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="pg-logs" class="pg hidden">
+        <h2 class="text-lg font-black mb-3">Change Logs</h2>
+        <p class="text-xs text-slate-500 mb-3">Developer se aane wale updates — new upar</p>
+        <div id="user-log-list" class="space-y-3"></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- CHANGELOG POPUP -->
+<div id="md-changelog" class="modal" style="z-index:350">
+  <div class="modal-box space-y-3 text-center" style="max-width:400px">
+    <div class="font-black text-lg text-slate-900" id="cl-pop-title">Update</div>
+    <div id="cl-pop-body" class="text-sm text-slate-700 text-left leading-relaxed max-h-60 overflow-y-auto"></div>
+    <div id="cl-pop-loading" class="text-xs text-amber-700 font-bold">Loading… <span id="cl-pop-sec">15</span>s</div>
+    <button type="button" id="cl-pop-ok" class="btn btn-primary w-full py-2.5" style="display:none">OK</button>
+  </div>
+</div>
+
+<div id="md-cust" class="modal"><div class="modal-box space-y-3">
+  <div class="font-black text-lg">New Customer</div>
+  <div><div class="label">Name *</div><input id="c-name"></div>
+  <div><div class="label">Phone</div><input id="c-phone" type="tel"></div>
+  <div><div class="label">Address</div><input id="c-addr"></div>
+  <div class="flex gap-2">
+    <button id="c-save" class="btn btn-primary flex-1">Save</button>
+    <button id="c-cancel" class="btn btn-ghost flex-1">Cancel</button>
+  </div>
+</div></div>
+
+<div id="md-pay" class="modal"><div class="modal-box space-y-3">
+  <div class="font-black text-lg">Receive Payment</div>
+  <p class="text-sm text-slate-500"><b id="mp-name" class="text-slate-900"></b> · Balance <b id="mp-bal" class="text-red-600"></b></p>
+  <div><div class="label">Amount</div><input id="mp-amt" type="number" min="0" step="0.01"></div>
+  <div><div class="label">Method</div><select id="mp-method"><option value="cash">Cash</option><option value="bank">Bank</option></select></div>
+  <div class="flex gap-2">
+    <button id="mp-save" class="btn btn-primary flex-1">Receive</button>
+    <button id="mp-cancel" class="btn btn-ghost flex-1">Cancel</button>
+  </div>
+</div></div>
+
+<div id="toast" class="toast"></div>
+
+<!-- CENTER ERROR POPUP -->
+<div id="err-modal" class="err-modal">
+  <div class="err-box">
+    <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-red-50 flex items-center justify-center text-red-600 text-xl">
+      <i class="fa-solid fa-circle-exclamation"></i>
+    </div>
+    <div class="font-black text-slate-900 text-base mb-1">Error</div>
+    <p id="err-msg" class="text-sm text-slate-600 mb-4 leading-relaxed"></p>
+    <button type="button" id="err-ok" class="btn btn-primary w-full py-2.5">OK</button>
+  </div>
+</div>
+
+<!-- PRINT ONLY -->
+<div id="print-root"></div>
+
+<script>
+(function(){
+"use strict";
+
+// ========== FIREBASE INIT ==========
+firebase.initializeApp({
+  apiKey: "AIzaSyCdoyMdeNfQnrMjpZdX-1lSTL7nHP1UBr0",
+  authDomain: "waqar-trader.firebaseapp.com",
+  databaseURL: "https://waqar-trader-default-rtdb.firebaseio.com",
+  projectId: "waqar-trader",
+  storageBucket: "waqar-trader.firebasestorage.app",
+  messagingSenderId: "1014019143422",
+  appId: "1:1014019143422:android:81752d55cf1e96a790d7af"
+});
+const db = firebase.database();
+
+// ========== PURE FIREBASE HELPERS ==========
+async function fpush(path, data) {
+  const r = db.ref(path).push();
+  await r.set(data);
+  return r.key;
+}
+async function fupd(path, data) {
+  await db.ref(path).update(data);
+  return true;
+}
+async function fset(path, data) {
+  await db.ref(path).set(data);
+  return true;
+}
+
+// ========== STATE ==========
+let session = null;
+let products = {};
+let customers = {};
+let bills = {};
+let cart = [];
+let shop = { name: "WAQAR TRADER DAULTALA", address: "", phone: "" };
+let payTarget = null;
+let nextSeq = 1001;
+let panelOpen = false;
+let selectedIdx = -1;
+let connected = false;
+let myChats = {};
+let activeSupportId = null;
+let devProfile = { name: "Eshaal", avatar: "" };
+
+function toast(m) {
+  const t = document.getElementById("toast");
+  t.textContent = m;
+  t.classList.add("on");
+  setTimeout(() => t.classList.remove("on"), 2500);
+}
+function showError(msg) {
+  const el = document.getElementById("err-modal");
+  const p = document.getElementById("err-msg");
+  if (p) p.textContent = msg || "Something went wrong";
+  if (el) el.classList.add("on");
+}
+function hideError() {
+  const el = document.getElementById("err-modal");
+  if (el) el.classList.remove("on");
+}
+document.getElementById("err-ok").onclick = hideError;
+document.getElementById("err-modal").addEventListener("click", function (e) {
+  if (e.target === this) hideError();
+});
+function money(n) { return (Number(n) || 0).toFixed(2); }
+function formatLoginTime(ts) {
+  if (!ts) return "—";
+  try {
+    return new Date(ts).toLocaleString();
+  } catch (e) { return "—"; }
+}
+function updateLastLoginUI() {
+  const el = document.getElementById("hdr-last-login");
+  if (!el) return;
+  const ts = session && session.lastLogin ? session.lastLogin : Number(localStorage.getItem("wt_last_login") || 0);
+  el.textContent = formatLoginTime(ts);
+}
+function today() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function setConn(ok) {
+  connected = ok;
+  const el = document.getElementById("connStatus");
+  if (!el) return;
+  el.textContent = ok ? "Online" : "Offline";
+  el.className = "conn " + (ok ? "ok" : "bad");
+}
+
+// Connection monitor
+db.ref(".info/connected").on("value", snap => setConn(!!snap.val()));
+
+// ========== IDLE SESSION TIMEOUT ==========
+let idleMinutes = 30;
+let lastActivity = Date.now();
+let idleCheckTimer = null;
+let idleWarned = false;
+let clockTimer = null;
+
+function loadIdleMinutes() {
+  const v = Number(localStorage.getItem("wt_idle_minutes") || 30);
+  idleMinutes = Math.min(240, Math.max(5, isNaN(v) ? 30 : v));
+  return idleMinutes;
+}
+function saveIdleMinutes(m) {
+  idleMinutes = Math.min(240, Math.max(5, Number(m) || 30));
+  localStorage.setItem("wt_idle_minutes", String(idleMinutes));
+  lastActivity = Date.now();
+  idleWarned = false;
+  updateIdleStatus();
+  toast("Timeout set: " + idleMinutes + " min");
+}
+function bumpActivity() {
+  lastActivity = Date.now();
+  if (idleWarned) {
+    idleWarned = false;
+    const el = document.getElementById("idle-status");
+    if (el) updateIdleStatus();
+  }
+}
+function updateIdleStatus() {
+  const el = document.getElementById("idle-status");
+  if (!el) return;
+  const left = Math.max(0, idleMinutes * 60 * 1000 - (Date.now() - lastActivity));
+  const mins = Math.floor(left / 60000);
+  const secs = Math.floor((left % 60000) / 1000);
+  el.textContent = "Auto logout in ~" + mins + "m " + secs + "s of idle · Limit: " + idleMinutes + " min";
+}
+function checkIdle() {
+  if (!session) return;
+  const limitMs = idleMinutes * 60 * 1000;
+  const idleFor = Date.now() - lastActivity;
+  // warn 60 seconds before
+  if (!idleWarned && idleFor >= limitMs - 60000 && idleFor < limitMs) {
+    idleWarned = true;
+    toast("Idle: " + Math.ceil((limitMs - idleFor) / 1000) + "s mein auto logout");
+  }
+  if (idleFor >= limitMs) {
+    toast("Session expired — logged out (" + idleMinutes + " min idle)");
+    showLogin();
+  }
+  updateIdleStatus();
+}
+const IDLE_EVENTS = ["mousedown", "mousemove", "keydown", "scroll", "touchstart", "click", "input"];
+let idleListenersOn = false;
+function startIdleWatch() {
+  stopIdleWatch();
+  loadIdleMinutes();
+  lastActivity = Date.now();
+  idleWarned = false;
+  if (!idleListenersOn) {
+    IDLE_EVENTS.forEach(ev => document.addEventListener(ev, bumpActivity, { passive: true }));
+    idleListenersOn = true;
+  }
+  idleCheckTimer = setInterval(checkIdle, 5000);
+  const minsInput = document.getElementById("idle-mins");
+  if (minsInput) minsInput.value = idleMinutes;
+  updateIdleStatus();
+}
+function stopIdleWatch() {
+  if (idleCheckTimer) { clearInterval(idleCheckTimer); idleCheckTimer = null; }
+  // keep listeners; they only bumpActivity when session exists (checkIdle no-ops)
+}
+
+// ========== AUTH ==========
+function showLogin() {
+  stopIdleWatch();
+  if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
+  document.getElementById("sc-app").classList.remove("on");
+  document.getElementById("sc-app").style.display = "none";
+  document.getElementById("sc-login").classList.add("on");
+  document.getElementById("sc-login").style.display = "flex";
+  session = null;
+  localStorage.removeItem("wt_user_session");
+  // detach
+  db.ref("products").off();
+  db.ref("customers").off();
+  db.ref("bills").off();
+  db.ref("shop_settings").off();
+  db.ref("meta/lastBillNo").off();
+  db.ref("support_chats").off();
+  db.ref("dev_profile").off();
+  db.ref("changelogs").off();
+}
+function showApp() {
+  document.getElementById("sc-login").classList.remove("on");
+  document.getElementById("sc-login").style.display = "none";
+  document.getElementById("sc-app").classList.add("on");
+  document.getElementById("sc-app").style.display = "flex";
+  document.getElementById("hdr-name").textContent = session.name || session.username;
+  document.getElementById("disc-max").textContent = session.discountLimit || 5;
+  if (!session.lastLogin) {
+    const stored = Number(localStorage.getItem("wt_last_login") || 0);
+    if (stored) session.lastLogin = stored;
+  }
+  updateLastLoginUI();
+  attachListeners();
+  nextBill();
+  tick();
+  if (clockTimer) clearInterval(clockTimer);
+  clockTimer = setInterval(tick, 20000);
+  startIdleWatch();
+  go("sale");
+}
+function tick() {
+  document.getElementById("sale-dt").textContent = new Date().toLocaleString();
+}
+
+document.getElementById("btn-login").onclick = function () {
+  const u = (document.getElementById("in-user").value || "").trim().toLowerCase();
+  const p = document.getElementById("in-pass").value || "";
+  const err = document.getElementById("login-err");
+  err.classList.add("hidden");
+  if (!u || !p) {
+    err.textContent = "Enter username & password";
+    err.classList.remove("hidden");
+    showError("Enter username & password");
+    return;
+  }
+  // Demo accounts
+  if ((u === "cashier" && p === "cashier123") || (u === "admin" && p === "admin123")) {
+    const now = Date.now();
+    session = {
+      id: "local-" + u,
+      username: u,
+      name: u === "admin" ? "Owner" : "Cashier",
+      role: u === "admin" ? "admin" : "user",
+      discountLimit: u === "admin" ? 100 : 5,
+      lastLogin: now
+    };
+    localStorage.setItem("wt_user_session", JSON.stringify(session));
+    localStorage.setItem("wt_last_login", String(now));
+    showApp();
+    return;
+  }
+  // Firebase users
+  db.ref("users").once("value").then(snap => {
+    let found = null, fid = null;
+    if (snap.exists()) {
+      snap.forEach(c => {
+        const v = c.val() || {};
+        if (String(v.username || "").toLowerCase() === u &&
+            v.password === p &&
+            v.active !== false) {
+          found = v;
+          fid = c.key;
+        }
+      });
+    }
+    if (!found) {
+      err.textContent = "Wrong username or password";
+      err.classList.remove("hidden");
+      showError("Wrong username or password");
+      return;
+    }
+    const now = Date.now();
+    session = {
+      id: fid,
+      username: found.username,
+      name: found.name || found.username,
+      role: found.role || "user",
+      discountLimit: Number(found.discountLimit || 5),
+      lastLogin: now
+    };
+    localStorage.setItem("wt_user_session", JSON.stringify(session));
+    localStorage.setItem("wt_last_login", String(now));
+    showApp();
+  }).catch(e => {
+    console.error(e);
+    err.textContent = "Firebase error — check connection / Rules";
+    err.classList.remove("hidden");
+    showError("Firebase error — check connection / Rules");
+  });
+};
+document.getElementById("btn-out").onclick = showLogin;
+
+// Restore session
+try {
+  const s = JSON.parse(localStorage.getItem("wt_user_session") || "null");
+  if (s && s.id) {
+    session = s;
+    showApp();
+  }
+} catch (e) {}
+
+// ========== NAV ==========
+function go(page) {
+  document.querySelectorAll(".pg").forEach(p => p.classList.add("hidden"));
+  document.getElementById("pg-" + page).classList.remove("hidden");
+  document.querySelectorAll(".nav-item").forEach(b => b.classList.toggle("on", b.getAttribute("data-p") === page));
+  if (page === "bills") renderBills();
+  if (page === "customers") renderCusts();
+  if (page === "products") {
+    // Force fresh pull so Admin-added products appear immediately
+    db.ref("products").once("value").then(applyProductsSnap).catch(() => {});
+    renderProds();
+  }
+  if (page === "summary") renderSum();
+  if (page === "support") {
+    activeSupportId = null;
+    document.getElementById("sup-welcome").classList.remove("hidden");
+    document.getElementById("sup-chat").classList.add("hidden");
+    renderSupHistory();
+    applyDevAvatar();
+  }
+  if (page === "logs") renderUserLogs();
+}
+document.querySelectorAll(".nav-item").forEach(b => b.onclick = () => go(b.getAttribute("data-p")));
+
+// ========== REAL-TIME LISTENERS ==========
+function applyProductsSnap(snap) {
+  const m = {};
+  if (snap && snap.exists()) {
+    snap.forEach(c => {
+      const v = c.val();
+      if (v && typeof v === "object") {
+        m[c.key] = Object.assign({ id: c.key }, v);
+      }
+    });
+  }
+  products = m;
+  // Live refresh everywhere products are used
+  if (panelOpen) {
+    renderPanel(document.getElementById("sale-search").value);
+  }
+  if (!document.getElementById("pg-products").classList.contains("hidden")) {
+    renderProds();
+  }
+  // Sale page: if search focused / panel not open, keep data ready
+  const salePg = document.getElementById("pg-sale");
+  if (salePg && !salePg.classList.contains("hidden")) {
+    // no UI force unless panel open — data is ready for browse
+  }
+}
+
+function attachListeners() {
+  // Products — live + immediate once so list is never stale
+  db.ref("products").off();
+  db.ref("products").once("value").then(applyProductsSnap).catch(e => { console.error(e); setConn(false); });
+  db.ref("products").on("value", applyProductsSnap, err => { console.error(err); setConn(false); });
+
+  // Customers
+  db.ref("customers").on("value", snap => {
+    const m = {};
+    if (snap.exists()) {
+      snap.forEach(c => m[c.key] = Object.assign({ id: c.key }, c.val()));
+    }
+    customers = m;
+    fillCust();
+    if (!document.getElementById("pg-customers").classList.contains("hidden")) renderCusts();
+  });
+
+  // Bills — full list, no limit (all vouchers from Firebase)
+  db.ref("bills").on("value", snap => {
+    const m = {};
+    if (snap.exists()) {
+      snap.forEach(c => {
+        const v = c.val() || {};
+        m[c.key] = Object.assign({ id: c.key }, v);
+      });
+    }
+    bills = m;
+    if (!document.getElementById("pg-bills").classList.contains("hidden")) renderBills();
+    if (!document.getElementById("pg-summary").classList.contains("hidden")) renderSum();
+  }, err => {
+    console.error("bills error", err);
+    setConn(false);
+  });
+
+  // Shop settings
+  db.ref("shop_settings").on("value", snap => {
+    if (snap.exists()) shop = Object.assign({ name: "Waqar Trader", address: "", phone: "" }, snap.val());
+  });
+
+  // Last bill number
+  db.ref("meta/lastBillNo").on("value", snap => {
+    const v = Number(snap.val() || 1000);
+    nextSeq = Math.max(1001, v + 1);
+    nextBill();
+  });
+
+  // Support chats (this cashier's)
+  db.ref("support_chats").on("value", snap => {
+    const m = {};
+    if (snap.exists()) {
+      snap.forEach(c => {
+        const v = Object.assign({ id: c.key }, c.val());
+        if (session && (v.userId === session.id || v.userName === (session.name || session.username))) {
+          m[c.key] = v;
+        }
+      });
+    }
+    myChats = m;
+    if (!document.getElementById("pg-support").classList.contains("hidden")) {
+      if (activeSupportId) renderSupRoom();
+      else renderSupHistory();
+    }
+  });
+
+  // Developer profile (avatar)
+  db.ref("dev_profile").on("value", snap => {
+    if (snap.exists()) devProfile = Object.assign({ name: "Eshaal", avatar: "" }, snap.val());
+    applyDevAvatar();
+  });
+
+  // Changelogs from developer
+  db.ref("changelogs").on("value", snap => {
+    const m = {};
+    if (snap.exists()) {
+      snap.forEach(c => { m[c.key] = Object.assign({ id: c.key }, c.val()); });
+    }
+    window.__changelogs = m;
+    if (!document.getElementById("pg-logs").classList.contains("hidden")) renderUserLogs();
+    checkNewChangelogPopup(m);
+  });
+}
+
+function renderUserLogs() {
+  const list = Object.values(window.__changelogs || {}).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  const el = document.getElementById("user-log-list");
+  if (!el) return;
+  el.innerHTML = list.length ? list.map(l =>
+    '<div class="card p-4"><div class="font-black text-slate-900">' + (l.title || "") + '</div>'
+    + '<div class="text-[11px] text-slate-400 mt-1 mb-2">' + (l.ts ? new Date(l.ts).toLocaleString() : "") + (l.by ? (" · " + l.by) : "") + '</div>'
+    + '<div class="text-sm text-slate-700 leading-relaxed">' + (l.body || "") + '</div></div>'
+  ).join("") : '<div class="text-center text-slate-400 py-8 text-sm">No change logs yet</div>';
+}
+
+function checkNewChangelogPopup(m) {
+  const seen = JSON.parse(localStorage.getItem("wt_seen_changelogs") || "[]");
+  const list = Object.values(m || {}).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  const newest = list.find(l => l.id && seen.indexOf(l.id) < 0);
+  if (!newest) return;
+  const modal = document.getElementById("md-changelog");
+  if (!modal || modal.classList.contains("on")) return;
+  document.getElementById("cl-pop-title").textContent = newest.title || "Update";
+  document.getElementById("cl-pop-body").innerHTML = newest.body || "";
+  document.getElementById("cl-pop-loading").style.display = "block";
+  document.getElementById("cl-pop-ok").style.display = "none";
+  modal.classList.add("on");
+  let sec = 15;
+  document.getElementById("cl-pop-sec").textContent = String(sec);
+  const t = setInterval(function () {
+    sec--;
+    const s = document.getElementById("cl-pop-sec");
+    if (s) s.textContent = String(sec);
+    if (sec <= 0) {
+      clearInterval(t);
+      document.getElementById("cl-pop-loading").style.display = "none";
+      document.getElementById("cl-pop-ok").style.display = "block";
+    }
+  }, 1000);
+  document.getElementById("cl-pop-ok").onclick = function () {
+    modal.classList.remove("on");
+    seen.push(newest.id);
+    localStorage.setItem("wt_seen_changelogs", JSON.stringify(seen.slice(-50)));
+  };
+}
+
+function nextBill() {
+  document.getElementById("sale-no").textContent = "B" + String(nextSeq).padStart(5, "0");
+}
+
+function fillCust() {
+  const sel = document.getElementById("sale-cust");
+  const cur = sel.value;
+  sel.innerHTML = '<option value="walkin">Local Customer</option>';
+  Object.values(customers).sort((a, b) => (a.name || "").localeCompare(b.name || "")).forEach(c => {
+    sel.innerHTML += '<option value="' + c.id + '">' + (c.name || "") + (c.phone ? (" · " + c.phone) : "") + '</option>';
+  });
+  if (cur) sel.value = cur;
+}
+
+document.getElementById("btn-walkin").onclick = () => {
+  document.getElementById("sale-cust").value = "walkin";
+};
+document.getElementById("skip-details").onchange = function () {
+  const dis = this.checked;
+  ["bill-cname", "bill-cphone", "bill-caddr"].forEach(id => {
+    const el = document.getElementById(id);
+    el.disabled = dis;
+    if (dis) el.value = "";
+    el.style.opacity = dis ? "0.45" : "1";
+  });
+};
+document.getElementById("sale-cust").addEventListener("change", function () {
+  if (this.value !== "walkin" && customers[this.value]) {
+    const c = customers[this.value];
+    if (!document.getElementById("skip-details").checked) {
+      document.getElementById("bill-cname").value = c.name || "";
+      document.getElementById("bill-cphone").value = c.phone || "";
+      document.getElementById("bill-caddr").value = c.address || "";
+    }
+  }
+});
+
+// ========== CUSTOMER MODAL ==========
+function openCust() {
+  document.getElementById("c-name").value = "";
+  document.getElementById("c-phone").value = "";
+  document.getElementById("c-addr").value = "";
+  document.getElementById("md-cust").classList.add("on");
+}
+document.getElementById("btn-new-cust").onclick = openCust;
+document.getElementById("btn-cust-add").onclick = openCust;
+document.getElementById("c-cancel").onclick = () => document.getElementById("md-cust").classList.remove("on");
+document.getElementById("c-save").onclick = async function () {
+  const name = (document.getElementById("c-name").value || "").trim();
+  if (!name) { showError("Name required"); return; }
+  const data = {
+    name,
+    phone: (document.getElementById("c-phone").value || "").trim(),
+    address: (document.getElementById("c-addr").value || "").trim(),
+    balance: 0,
+    createdAt: Date.now(),
+    createdBy: session.id
+  };
+  try {
+    const id = await fpush("customers", data);
+    toast("Customer saved");
+    document.getElementById("md-cust").classList.remove("on");
+    setTimeout(() => { document.getElementById("sale-cust").value = id; }, 150);
+  } catch (e) {
+    showError("Save failed — check Firebase Rules");
+    setConn(false);
+  }
+};
+
+// ========== PRODUCT PANEL ==========
+function filteredProducts(q) {
+  q = (q || "").trim().toLowerCase();
+  let list = Object.values(products);
+  if (q) {
+    list = list.filter(p =>
+      (p.name || "").toLowerCase().includes(q) ||
+      (p.code || "").toLowerCase().includes(q) ||
+      (p.barcode || "").toLowerCase().includes(q) ||
+      (p.category || "").toLowerCase().includes(q)
+    );
+  }
+  return list.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+}
+function renderPanel(q) {
+  const list = filteredProducts(q);
+  const el = document.getElementById("product-panel");
+  if (!list.length) {
+    el.innerHTML = '<div class="p-3 text-sm text-slate-400">No products found</div>';
+    el.classList.remove("hidden");
+    panelOpen = true;
+    return;
+  }
+  el.innerHTML = list.map((p, i) => {
+    return '<div class="pi' + (i === selectedIdx ? ' sel' : '') + '" data-pid="' + p.id + '" data-i="' + i + '">'
+      + '<span><b>' + (p.name || "") + '</b> <span class="text-slate-400 text-xs">' + (p.category || "") + ' · ' + (p.code || "") + '</span></span>'
+      + '<span class="font-bold text-emerald-700">' + money(p.salePrice) + '</span></div>';
+  }).join("");
+  el.classList.remove("hidden");
+  panelOpen = true;
+  el.querySelectorAll(".pi").forEach(row => {
+    row.onclick = () => addLine(row.getAttribute("data-pid"));
+    row.onmouseenter = () => {
+      selectedIdx = Number(row.getAttribute("data-i"));
+      el.querySelectorAll(".pi").forEach((r, j) => r.classList.toggle("sel", j === selectedIdx));
+    };
+  });
+}
+const searchEl = document.getElementById("sale-search");
+const panelEl = document.getElementById("product-panel");
+searchEl.addEventListener("input", function () { selectedIdx = 0; renderPanel(searchEl.value); });
+searchEl.addEventListener("focus", function () { renderPanel(searchEl.value); });
+document.getElementById("btn-browse").onclick = function () {
+  searchEl.value = "";
+  selectedIdx = 0;
+  // Pull latest products from Firebase before showing list
+  db.ref("products").once("value").then(snap => {
+    applyProductsSnap(snap);
+    renderPanel("");
+    searchEl.focus();
+  }).catch(() => {
+    renderPanel("");
+    searchEl.focus();
+  });
+};
+document.getElementById("btn-add-prod").onclick = function () {
+  const rows = panelEl.querySelectorAll(".pi");
+  if (selectedIdx >= 0 && rows[selectedIdx]) rows[selectedIdx].click();
+  else if (rows[0]) rows[0].click();
+};
+searchEl.addEventListener("keydown", function (e) {
+  const rows = panelEl.querySelectorAll(".pi");
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    selectedIdx = Math.min(selectedIdx + 1, rows.length - 1);
+    rows.forEach((r, i) => r.classList.toggle("sel", i === selectedIdx));
+    if (rows[selectedIdx]) rows[selectedIdx].scrollIntoView({ block: "nearest" });
+  }
+  if (e.key === "ArrowUp") {
+    e.preventDefault();
+    selectedIdx = Math.max(selectedIdx - 1, 0);
+    rows.forEach((r, i) => r.classList.toggle("sel", i === selectedIdx));
+    if (rows[selectedIdx]) rows[selectedIdx].scrollIntoView({ block: "nearest" });
+  }
+  if (e.key === "Enter") {
+    e.preventDefault();
+    document.getElementById("btn-add-prod").click();
+  }
+  if (e.key === "Escape") {
+    panelEl.classList.add("hidden");
+    panelOpen = false;
+  }
+});
+document.addEventListener("click", function (e) {
+  if (!panelEl.contains(e.target) && e.target !== searchEl && e.target.id !== "btn-browse") {
+    panelEl.classList.add("hidden");
+    panelOpen = false;
+  }
+});
+
+let focusQtyIdx = -1;
+
+function addLine(pid) {
+  const p = products[pid];
+  if (!p) return;
+  // Stock counting disabled — products always available
+  let idx = cart.findIndex(x => x.productId === pid);
+  if (idx >= 0) {
+    cart[idx].qty++;
+  } else {
+    cart.push({
+      productId: pid,
+      name: p.name,
+      code: p.code || "",
+      category: p.category || "",
+      rate: Number(p.salePrice || 0),
+      qty: 1,
+      disc: 0
+    });
+    idx = cart.length - 1;
+  }
+  searchEl.value = "";
+  panelEl.classList.add("hidden");
+  panelOpen = false;
+  selectedIdx = -1;
+  focusQtyIdx = idx;
+  renderCart();
+  // Focus qty of this line so user can type quantity
+  setTimeout(function () {
+    const q = document.querySelector('#sale-lines input[data-f="qty"][data-i="' + idx + '"]');
+    if (q) {
+      q.focus();
+      q.select();
+    }
+  }, 30);
+}
+
+function renderCart() {
+  const tb = document.getElementById("sale-lines");
+  const empty = document.getElementById("sale-empty");
+  const limit = Number(session && session.discountLimit || 5);
+  if (!cart.length) {
+    tb.innerHTML = "";
+    empty.classList.remove("hidden");
+    calc();
+    return;
+  }
+  empty.classList.add("hidden");
+  tb.innerHTML = cart.map((l, i) => {
+    const amt = l.rate * l.qty * (1 - l.disc / 100);
+    return '<tr><td class="font-semibold">' + (l.name || "") + '<div class="text-[10px] text-slate-400">' + (l.code || "") + '</div></td>'
+      + '<td class="text-xs text-slate-500">' + (l.category || "—") + '</td>'
+      + '<td><input type="number" min="1" value="' + l.qty + '" data-i="' + i + '" data-f="qty" class="w-16 cart-i cart-qty"></td>'
+      + '<td>' + money(l.rate) + '</td>'
+      + '<td><input type="number" min="0" max="' + limit + '" step="0.1" value="' + l.disc + '" data-i="' + i + '" data-f="disc" class="w-16 cart-i"></td>'
+      + '<td class="font-bold cart-amt" data-i="' + i + '">' + money(amt) + '</td>'
+      + '<td><button type="button" data-rm="' + i + '" class="text-red-500 text-xs font-bold">✕</button></td></tr>';
+  }).join("");
+  tb.querySelectorAll(".cart-i").forEach(inp => {
+    inp.oninput = function () {
+      const i = Number(inp.getAttribute("data-i"));
+      const f = inp.getAttribute("data-f");
+      let v = Number(inp.value) || 0;
+      if (f === "qty") {
+        cart[i].qty = Math.max(1, v || 1);
+      }
+      if (f === "disc") {
+        if (v > limit) { showError("Max " + limit + "%"); v = limit; inp.value = v; }
+        cart[i].disc = Math.max(0, v);
+      }
+      // Update amount cell without full re-render (keep focus)
+      const amt = cart[i].rate * cart[i].qty * (1 - cart[i].disc / 100);
+      const cell = tb.querySelector('.cart-amt[data-i="' + i + '"]');
+      if (cell) cell.textContent = money(amt);
+      calc();
+    };
+    // Qty Enter → Paid | F1 → Search
+    inp.onkeydown = function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (inp.getAttribute("data-f") === "qty") {
+          const paid = document.getElementById("t-paid");
+          paid.focus();
+          paid.select();
+        }
+      }
+      if (e.key === "F1") {
+        e.preventDefault();
+        searchEl.focus();
+        searchEl.select();
+      }
+    };
+  });
+  tb.querySelectorAll("[data-rm]").forEach(b => {
+    b.onclick = () => {
+      cart.splice(Number(b.getAttribute("data-rm")), 1);
+      renderCart();
+    };
+  });
+  calc();
+}
+
+function calc() {
+  let sub = 0;
+  cart.forEach(l => sub += l.rate * l.qty * (1 - l.disc / 100));
+  let bd = Number(document.getElementById("t-disc").value) || 0;
+  const limit = Number(session && session.discountLimit || 5);
+  if (bd > limit) {
+    bd = limit;
+    document.getElementById("t-disc").value = limit;
+  }
+  const grand = sub * (1 - bd / 100);
+  const paid = Number(document.getElementById("t-paid").value) || 0;
+  document.getElementById("t-items").textContent = String(cart.reduce((n, l) => n + l.qty, 0));
+  document.getElementById("t-sub").textContent = money(sub);
+  document.getElementById("t-grand").textContent = money(grand);
+  document.getElementById("t-bal").textContent = money(Math.max(0, grand - paid));
+  const exEl = document.getElementById("t-exchange");
+  if (exEl) exEl.textContent = money(Math.max(0, paid - grand));
+  return { sub, billDisc: bd, grand, paid };
+}
+document.getElementById("t-disc").oninput = calc;
+document.getElementById("t-paid").oninput = calc;
+
+// Quick paid = grand total
+document.getElementById("btn-pay-full").onclick = function () {
+  const t = calc();
+  document.getElementById("t-paid").value = money(t.grand);
+  calc();
+};
+
+// Hold / Resume bill (local)
+document.getElementById("btn-hold").onclick = function () {
+  if (!cart.length) { showError("Cart empty — nothing to hold"); return; }
+  const data = {
+    cart: cart.slice(),
+    disc: document.getElementById("t-disc").value,
+    paid: document.getElementById("t-paid").value,
+    pay: document.getElementById("t-pay").value,
+    cust: document.getElementById("sale-cust").value,
+    cname: document.getElementById("bill-cname").value,
+    cphone: document.getElementById("bill-cphone").value,
+    caddr: document.getElementById("bill-caddr").value,
+    skip: document.getElementById("skip-details").checked
+  };
+  localStorage.setItem("wt_hold_bill", JSON.stringify(data));
+  cart = [];
+  renderCart();
+  document.getElementById("t-disc").value = 0;
+  document.getElementById("t-paid").value = 0;
+  toast("Bill held — Resume se wapas lao");
+};
+document.getElementById("btn-resume").onclick = function () {
+  try {
+    const raw = localStorage.getItem("wt_hold_bill");
+    if (!raw) { showError("Koi held bill nahi"); return; }
+    const data = JSON.parse(raw);
+    cart = data.cart || [];
+    document.getElementById("t-disc").value = data.disc || 0;
+    document.getElementById("t-paid").value = data.paid || 0;
+    document.getElementById("t-pay").value = data.pay || "cash";
+    document.getElementById("sale-cust").value = data.cust || "walkin";
+    document.getElementById("bill-cname").value = data.cname || "";
+    document.getElementById("bill-cphone").value = data.cphone || "";
+    document.getElementById("bill-caddr").value = data.caddr || "";
+    document.getElementById("skip-details").checked = !!data.skip;
+    document.getElementById("skip-details").dispatchEvent(new Event("change"));
+    renderCart();
+    localStorage.removeItem("wt_hold_bill");
+    toast("Held bill resumed");
+  } catch (e) {
+    showError("Hold resume failed");
+  }
+};
+
+// Reprint last bill
+let lastPrintedBill = null;
+document.getElementById("btn-reprint-last").onclick = function () {
+  if (lastPrintedBill) {
+    printBill(lastPrintedBill);
+  } else {
+    // try latest from bills list
+    const list = Object.values(bills).filter(b => !b.cancelled).sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0));
+    if (list[0]) printBill(list[0]);
+    else showError("Koi last bill nahi mili");
+  }
+};
+
+// Keyboard shortcuts: Ctrl+S save · F1 → product search · Paid Enter → save
+document.addEventListener("keydown", function (e) {
+  const onSale = document.getElementById("sc-app").classList.contains("on") &&
+    !document.getElementById("pg-sale").classList.contains("hidden");
+  if (!onSale) return;
+
+  if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
+    e.preventDefault();
+    document.getElementById("btn-save").click();
+  }
+  // F1 → focus product search (from anywhere on sale page)
+  if (e.key === "F1") {
+    e.preventDefault();
+    const se = document.getElementById("sale-search");
+    se.focus();
+    se.select();
+  }
+});
+
+// Paid field: Enter → Save bill
+document.getElementById("t-paid").addEventListener("keydown", function (e) {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    document.getElementById("btn-save").click();
+  }
+  if (e.key === "F1") {
+    e.preventDefault();
+    document.getElementById("sale-search").focus();
+  }
+});
+
+// ========== SAVE BILL ==========
+document.getElementById("btn-save").onclick = async function () {
+  if (!cart.length) { showError("Add products first"); return; }
+  const t = calc();
+  // Stock counting disabled — no stock checks
+  const method = document.getElementById("t-pay").value;
+  const custId = document.getElementById("sale-cust").value;
+  const skip = document.getElementById("skip-details").checked;
+  let custName = "Local Customer", custPhone = "", custAddr = "", showDetails = true;
+  if (skip) {
+    showDetails = false;
+  } else {
+    custName = (document.getElementById("bill-cname").value || "").trim() || "Local Customer";
+    custPhone = (document.getElementById("bill-cphone").value || "").trim();
+    custAddr = (document.getElementById("bill-caddr").value || "").trim();
+    if (custId !== "walkin" && customers[custId] && !custName) {
+      custName = customers[custId].name || "Local Customer";
+      if (!custPhone) custPhone = customers[custId].phone || "";
+      if (!custAddr) custAddr = customers[custId].address || "";
+    }
+  }
+  const billNo = "B" + String(nextSeq).padStart(5, "0");
+  const bill = {
+    billNo,
+    seq: nextSeq,
+    date: today(),
+    ts: Date.now(),
+    customerId: custId === "walkin" ? null : custId,
+    customerName: custName,
+    customerPhone: custPhone,
+    customerAddress: custAddr,
+    showCustomerDetails: showDetails,
+    items: cart.map(l => ({
+      productId: l.productId,
+      name: l.name,
+      code: l.code,
+      category: l.category,
+      qty: l.qty,
+      rate: l.rate,
+      disc: l.disc,
+      amount: l.rate * l.qty * (1 - l.disc / 100)
+    })),
+    subtotal: t.sub,
+    billDiscount: t.billDisc,
+    grandTotal: t.grand,
+    paid: t.paid,
+    balance: Math.max(0, t.grand - t.paid),
+    paymentMethod: method,
+    cashierId: session.id,
+    cashierName: session.name || session.username,
+    shopName: shop.name || "Waqar Trader",
+    shopAddress: shop.address || "",
+    shopPhone: shop.phone || "",
+    cancelled: false
+  };
+
+  const btn = document.getElementById("btn-save");
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+
+  try {
+    // Update last bill number
+    await db.ref("meta/lastBillNo").transaction(c => Math.max(Number(c || 1000), nextSeq));
+
+    // Save bill
+    const id = await fpush("bills", bill);
+
+    // Stock counting disabled — no stock reduction on sale
+
+    // Increase customer balance if credit
+    if (bill.balance > 0 && bill.customerId) {
+      await db.ref("customers/" + bill.customerId + "/balance").transaction(b =>
+        Number(b || 0) + bill.balance
+      );
+    }
+
+    toast("Bill " + billNo + " saved");
+    lastPrintedBill = Object.assign({}, bill, { id });
+    printBill(lastPrintedBill);
+
+    // Reset form
+    cart = [];
+    renderCart();
+    document.getElementById("t-disc").value = 0;
+    document.getElementById("t-paid").value = 0;
+    document.getElementById("sale-cust").value = "walkin";
+    document.getElementById("bill-cname").value = "";
+    document.getElementById("bill-cphone").value = "";
+    document.getElementById("bill-caddr").value = "";
+    document.getElementById("skip-details").checked = false;
+    document.getElementById("skip-details").dispatchEvent(new Event("change"));
+    nextSeq++;
+    nextBill();
+  } catch (e) {
+    console.error(e);
+    showError("Save failed — check Firebase Rules / connection");
+    setConn(false);
+  }
+  btn.disabled = false;
+  btn.textContent = "Save & Print (Ctrl+S)";
+};
+
+// ========== PRINT ==========
+function printBill(bill) {
+  const root = document.getElementById("print-root");
+  const paid = Number(bill.paid || 0);
+  const total = Number(bill.grandTotal || 0);
+  const exchange = Math.max(0, paid - total);
+  const baqaya = Number(bill.balance || 0);
+  const showCust = bill.showCustomerDetails !== false && (bill.customerName || bill.customerPhone || bill.customerAddress);
+  const itemsHtml = (bill.items || []).map((it, i) =>
+    '<tr>'
+    + '<td style="padding:6px 4px;border:1px solid #222;text-align:center">' + (i + 1) + '</td>'
+    + '<td style="padding:6px 6px;border:1px solid #222">' + (it.name || "")
+    + '<div style="font-size:10px;color:#444">' + (it.category || "") + (it.code ? ((it.category ? " · " : "") + it.code) : "") + '</div></td>'
+    + '<td style="padding:6px;border:1px solid #222;text-align:center">' + it.qty + '</td>'
+    + '<td style="padding:6px;border:1px solid #222;text-align:right">' + money(it.rate) + '</td>'
+    + '<td style="padding:6px;border:1px solid #222;text-align:right">' + money(it.amount) + '</td></tr>'
+  ).join("");
+
+  const prevTitle = document.title;
+  document.title = " ";
+
+  root.innerHTML =
+    '<div style="font-family:Arial,Tahoma,sans-serif;width:100%;max-width:100%;margin:0;padding:4px 8px;color:#000;font-size:13px;line-height:1.4;box-sizing:border-box">'
+    + '<div style="text-align:center;padding-bottom:8px;margin-bottom:8px;border-bottom:2px solid #111">'
+    + '<div style="font-size:22px;font-weight:900;letter-spacing:1px">' + (bill.shopName || shop.name || "Waqar Trader") + '</div>'
+    + ((bill.shopAddress || shop.address || bill.shopPhone || shop.phone)
+      ? ('<div style="font-size:11px;color:#333;margin-top:3px">' + (bill.shopAddress || shop.address || "") + (bill.shopPhone || shop.phone ? (" | " + (bill.shopPhone || shop.phone)) : "") + '</div>')
+      : '')
+    + '<div style="font-size:13px;font-weight:800;margin-top:5px;letter-spacing:2px">SALE BILL</div>'
+    + '</div>'
+    + '<table style="width:100%;font-size:12px;margin-bottom:8px;border-collapse:collapse">'
+    + '<tr><td style="padding:2px 0"><b>Bill No:</b> ' + (bill.billNo || "") + '</td>'
+    + '<td style="padding:2px 0;text-align:right"><b>Date:</b> ' + new Date(bill.ts || Date.now()).toLocaleString() + '</td></tr></table>'
+    + (showCust
+      ? ('<div style="padding:2px 0 8px;font-size:12px">'
+         + '<b>Customer:</b> ' + (bill.customerName || "Local Customer")
+         + (bill.customerPhone ? (' &nbsp;|&nbsp; <b>Phone:</b> ' + bill.customerPhone) : '')
+         + (bill.customerAddress ? ('<br><b>Address:</b> ' + bill.customerAddress) : '')
+         + '</div>')
+      : '<div style="padding:2px 0 8px;font-size:12px"><b>Customer:</b> Local Customer</div>')
+    + '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    + '<thead><tr style="background:#f0f0f0">'
+    + '<th style="padding:6px 4px;border:1px solid #222;width:28px">#</th>'
+    + '<th style="padding:6px;border:1px solid #222;text-align:left">Item / Category</th>'
+    + '<th style="padding:6px;border:1px solid #222;width:44px">Qty</th>'
+    + '<th style="padding:6px;border:1px solid #222;width:70px;text-align:right">Rate</th>'
+    + '<th style="padding:6px;border:1px solid #222;width:80px;text-align:right">Amount</th></tr></thead>'
+    + '<tbody>' + itemsHtml + '</tbody></table>'
+    + '<div style="border:1.5px solid #111;margin-top:10px;padding:10px 12px;font-size:13px">'
+    + '<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>Subtotal</span><span>' + money(bill.subtotal) + '</span></div>'
+    + (Number(bill.billDiscount) > 0
+      ? '<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>Discount ' + bill.billDiscount + '%</span><span>-' + money((bill.subtotal || 0) * bill.billDiscount / 100) + '</span></div>' : '')
+    + '<div style="display:flex;justify-content:space-between;font-weight:900;font-size:16px;padding:6px 0 2px;border-top:2px solid #111;margin-top:4px">'
+    + '<span>Total Bill</span><span>' + money(bill.grandTotal) + '</span></div>'
+    + '<div style="border-top:1px solid #111;margin:6px 0"></div>'
+    + '<div style="display:flex;justify-content:space-between"><span>Paid (' + (bill.paymentMethod || "cash") + ')</span><span>' + money(paid) + '</span></div>'
+    + '<div style="display:flex;justify-content:space-between;font-weight:700;margin-top:3px"><span>Exchange / باقی</span><span>' + money(exchange) + '</span></div>'
+    + (baqaya > 0 ? '<div style="display:flex;justify-content:space-between;margin-top:3px"><span>Udhaar / باقایا</span><span>' + money(baqaya) + '</span></div>' : '')
+    + '</div>'
+    + '<div style="margin-top:12px;padding:9px 10px;border:1.5px dashed #333;text-align:center;'
+    + 'font-family:Tahoma,\'Noto Nastaliq Urdu\',serif;font-size:12px;line-height:1.9;direction:rtl">'
+    + 'خریدہ ہوا مال واپس یا تبدیل نہیں ہوگا۔ برائے مہربانی کاؤنٹر پر اپنا سامان تسلی سے چیک کر لیں۔ شکریہ!'
+    + '</div>'
+    + '<div style="display:flex;justify-content:space-between;margin-top:30px;font-size:11px;text-align:center">'
+    + '<div style="width:42%"><div style="border-top:1px solid #111;padding-top:5px">Customer Signature</div></div>'
+    + '<div style="width:42%"><div style="border-top:1px solid #111;padding-top:5px">Cashier Signature</div></div>'
+    + '</div>'
+    + '<div style="margin-top:14px;padding-top:8px;border-top:1px solid #ccc;font-size:11px">'
+    + '<div><b>Cashier:</b> ' + (bill.cashierName || "") + '</div>'
+    + '<div><b>Create bill by:</b> ' + (bill.cashierName || "") + '</div>'
+    + '<div><b>Print by:</b> ' + (bill.cashierName || "") + '</div>'
+    + '</div>'
+    + '</div>';
+
+  setTimeout(function () {
+    window.print();
+    setTimeout(function () { document.title = prevTitle; }, 500);
+  }, 200);
+}
+
+// ========== BILLS LIST ==========
+function renderBills() {
+  // ALL bills from Firebase — no limit, no hide by cashier
+  let rows = Object.values(bills).sort((a, b) => {
+    const ta = Number(a.ts || a.createdAt || 0);
+    const tb = Number(b.ts || b.createdAt || 0);
+    return tb - ta || String(b.billNo || "").localeCompare(String(a.billNo || ""));
+  });
+
+  const q = (document.getElementById("bill-q").value || "").toLowerCase().trim();
+  const df = (document.getElementById("bill-date").value || "").trim();
+
+  const totalAll = rows.length;
+  const activeCount = rows.filter(b => !b.cancelled).length;
+  const cancelledCount = totalAll - activeCount;
+
+  // Filter only by search + optional date (do NOT hide cancelled)
+  const f = rows.filter(b => {
+    if (df) {
+      // match date field OR local date from ts
+      const billDate = b.date || (b.ts ? new Date(b.ts).toISOString().slice(0, 10) : "");
+      if (billDate !== df) return false;
+    }
+    if (q) {
+      const hay = [
+        b.billNo, b.customerName, b.cashierName, b.customerPhone, b.paymentMethod
+      ].map(x => String(x || "").toLowerCase()).join(" ");
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  // Header with total count
+  const headRow = '<tr><td colspan="8" style="background:#fff7ed;border-bottom:2px solid #fed7aa;padding:10px 12px">'
+    + '<span style="font-size:13px;font-weight:800;color:#b45309">Total vouchers: <b style="font-size:16px">' + totalAll + '</b></span>'
+    + ' <span style="font-size:11px;color:#64748b;margin-left:10px">Active ' + activeCount + ' · Cancelled ' + cancelledCount + '</span>'
+    + (df || q ? ' <span style="font-size:11px;color:#0369a1;margin-left:8px">Showing ' + f.length + ' filtered</span>' : '')
+    + '</td></tr>';
+
+  if (!f.length) {
+    document.getElementById("bill-body").innerHTML = headRow
+      + '<tr><td colspan="8" class="text-center text-slate-400 py-8">'
+      + (totalAll === 0 ? "No bills in Firebase yet — save a sale first" : "No bills match filter")
+      + '</td></tr>';
+    return;
+  }
+
+  document.getElementById("bill-body").innerHTML = headRow + f.map(b => {
+    const cancelled = !!b.cancelled;
+    return '<tr style="' + (cancelled ? "opacity:0.55" : "") + '">'
+      + '<td class="font-bold text-amber-700">' + (b.billNo || "—")
+      + (cancelled ? ' <span style="font-size:9px;background:#fef2f2;color:#b91c1c;padding:1px 5px;border-radius:4px;font-weight:800">CANCELLED</span>' : '')
+      + '</td>'
+      + '<td class="text-xs">' + (b.ts ? new Date(b.ts).toLocaleString() : (b.date || "—")) + '</td>'
+      + '<td>' + (b.customerName || "—") + '</td>'
+      + '<td>' + money(b.grandTotal) + '</td>'
+      + '<td>' + money(b.paid) + '</td>'
+      + '<td>' + (b.paymentMethod || "") + '</td>'
+      + '<td class="text-xs">' + (b.cashierName || "—") + '</td>'
+      + '<td><button data-pr="' + b.id + '" class="text-sky-600 text-xs font-bold">Reprint</button></td></tr>';
+  }).join("");
+
+  document.querySelectorAll("[data-pr]").forEach(btn => {
+    btn.onclick = () => {
+      const b = bills[btn.getAttribute("data-pr")];
+      if (b) printBill(b);
+    };
+  });
+}
+document.getElementById("bill-q").oninput = renderBills;
+document.getElementById("bill-date").onchange = renderBills;
+document.getElementById("btn-today").onclick = () => {
+  document.getElementById("bill-date").value = today();
+  renderBills();
+};
+document.getElementById("btn-all-bills").onclick = () => {
+  document.getElementById("bill-date").value = "";
+  document.getElementById("bill-q").value = "";
+  renderBills();
+};
+
+// ========== CUSTOMERS ==========
+function renderCusts() {
+  const q = (document.getElementById("cust-q").value || "").toLowerCase();
+  const list = Object.values(customers).filter(c =>
+    !q || (c.name || "").toLowerCase().includes(q) || (c.phone || "").includes(q)
+  );
+  document.getElementById("cust-body").innerHTML = list.map(c =>
+    '<tr><td class="font-semibold">' + (c.name || "") + '</td><td>' + (c.phone || "—") + '</td><td class="text-xs text-slate-500">' + (c.address || "—") + '</td><td class="' + (Number(c.balance) > 0 ? "text-red-600 font-bold" : "") + '">' + money(c.balance) + '</td><td><button data-pay="' + c.id + '" class="text-emerald-600 text-xs font-bold">Receive</button></td></tr>'
+  ).join("") || '<tr><td colspan="5" class="text-center text-slate-400 py-8">No customers</td></tr>';
+
+  document.querySelectorAll("[data-pay]").forEach(b => {
+    b.onclick = () => {
+      payTarget = customers[b.getAttribute("data-pay")];
+      if (!payTarget) return;
+      document.getElementById("mp-name").textContent = payTarget.name;
+      document.getElementById("mp-bal").textContent = money(payTarget.balance);
+      document.getElementById("mp-amt").value = "";
+      document.getElementById("md-pay").classList.add("on");
+    };
+  });
+}
+document.getElementById("cust-q").oninput = renderCusts;
+document.getElementById("mp-cancel").onclick = () => document.getElementById("md-pay").classList.remove("on");
+document.getElementById("mp-save").onclick = async function () {
+  if (!payTarget) return;
+  const amt = Number(document.getElementById("mp-amt").value) || 0;
+  if (amt <= 0) { showError("Enter amount"); return; }
+  const method = document.getElementById("mp-method").value;
+  try {
+    await db.ref("customers/" + payTarget.id + "/balance").transaction(b =>
+      Math.max(0, Number(b || 0) - amt)
+    );
+    await db.ref("customer_payments").push({
+      customerId: payTarget.id,
+      customerName: payTarget.name,
+      amount: amt,
+      method,
+      ts: Date.now(),
+      date: today(),
+      by: session.id,
+      byName: session.name
+    });
+    toast("Payment received");
+    document.getElementById("md-pay").classList.remove("on");
+  } catch (e) {
+    showError("Payment failed");
+    setConn(false);
+  }
+};
+
+// ========== PRODUCTS (view only) ==========
+function renderProds() {
+  const q = (document.getElementById("prod-q").value || "").toLowerCase();
+  const all = Object.values(products);
+  const list = all.filter(p =>
+    !q || (p.name || "").toLowerCase().includes(q) || (p.code || "").toLowerCase().includes(q) || (p.category || "").toLowerCase().includes(q)
+  );
+  const head = '<tr><td colspan="5" style="background:#fff7ed;font-weight:800;color:#b45309;padding:10px 12px">Total products online: ' + all.length + (q ? ' · showing ' + list.length : '') + '</td></tr>';
+  document.getElementById("prod-body").innerHTML = head + (list.map(p => {
+    return '<tr><td class="font-semibold">' + (p.name || "") + '</td><td class="text-xs">' + (p.code || "—") + '</td><td class="text-xs">' + (p.category || "—") + '</td><td class="font-bold">' + money(p.salePrice) + '</td><td class="text-xs">' + (p.unit || "PCS") + '</td></tr>';
+  }).join("") || '<tr><td colspan="5" class="text-center text-slate-400 py-8">No products — Admin must add from Admin panel</td></tr>');
+}
+document.getElementById("prod-q").oninput = renderProds;
+
+// ========== SUMMARY ==========
+function renderSum() {
+  const tk = today();
+  let billCount = 0, sale = 0, cash = 0, credit = 0;
+  Object.values(bills).forEach(b => {
+    if (b.cancelled) return;
+    if (b.date !== tk) return;
+    // Show all bills of the day (or filter by cashier if needed)
+    // For now show all so owner can see full picture; cashier sees own if preferred
+    const isMine = (b.cashierId === session.id || b.cashierName === session.name || b.cashierName === session.username);
+    // Show all for simplicity (admin-created cashiers will see all today)
+    billCount++;
+    sale += Number(b.grandTotal || 0);
+    if (b.paymentMethod === "credit") credit += Number(b.balance || 0);
+    else cash += Number(b.paid || 0);
+  });
+  document.getElementById("sum-cards").innerHTML = [
+    ["Bills", billCount, "#0369a1"],
+    ["Sale", money(sale), "#b45309"],
+    ["Cash", money(cash), "#15803d"],
+    ["Credit", money(credit), "#b91c1c"]
+  ].map(([l, v, c]) =>
+    '<div class="card p-4"><div class="text-[11px] uppercase font-bold text-slate-400">' + l + '</div><div class="text-2xl font-black mt-1" style="color:' + c + '">' + v + '</div></div>'
+  ).join("");
+  // sync idle UI
+  const minsInput = document.getElementById("idle-mins");
+  if (minsInput) minsInput.value = idleMinutes;
+  updateIdleStatus();
+}
+
+document.getElementById("idle-save").onclick = function () {
+  const v = Number(document.getElementById("idle-mins").value) || 30;
+  saveIdleMinutes(v);
+  document.getElementById("idle-mins").value = idleMinutes;
+};
+
+// ========== COMPLAINTS / SUPPORT ==========
+function applyDevAvatar() {
+  const url = devProfile.avatar || ("https://ui-avatars.com/api/?name=" + encodeURIComponent(devProfile.name || "Eshaal") + "&background=0891b2&color=fff&size=112");
+  const a = document.getElementById("sup-dev-avatar");
+  const b = document.getElementById("sup-chat-avatar");
+  if (a) a.src = url;
+  if (b) b.src = url;
+}
+
+function renderSupHistory() {
+  const list = Object.values(myChats).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  const el = document.getElementById("sup-history");
+  if (!list.length) {
+    el.innerHTML = '<div class="text-slate-400 text-center py-4">No previous chats</div>';
+    return;
+  }
+  el.innerHTML = list.map(c => {
+    const open = c.status === "open";
+    return '<div class="flex justify-between items-center p-3 rounded-xl border border-slate-100 hover:bg-slate-50 cursor-pointer" data-sid="' + c.id + '">'
+      + '<div><div class="font-semibold text-slate-800">' + (c.issueType || "Issue") + '</div>'
+      + '<div class="text-[11px] text-slate-400">' + (c.updatedAt ? new Date(c.updatedAt).toLocaleString() : "") + ' · ' + (c.lastMessage || "").slice(0, 40) + '</div></div>'
+      + '<span class="text-[10px] font-bold px-2 py-1 rounded-full ' + (open ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500") + '">' + (open ? "OPEN" : "CLOSED") + '</span></div>';
+  }).join("");
+  el.querySelectorAll("[data-sid]").forEach(row => {
+    row.onclick = () => openSupportChat(row.getAttribute("data-sid"));
+  });
+}
+
+document.querySelectorAll("#sup-options [data-issue]").forEach(btn => {
+  btn.onclick = async () => {
+    const issueType = btn.getAttribute("data-issue");
+    // Start new chat
+    const welcome = {
+      from: "developer",
+      text: "Assalam o Alaikum, dear Waqar Trader — I'm Eshaal. I hope you're doing well.\nHum aapki kya madad kar sakte hain?",
+      ts: Date.now(),
+      name: devProfile.name || "Eshaal"
+    };
+    const data = {
+      userId: session.id,
+      userName: session.name || session.username,
+      issueType,
+      status: "open",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      lastMessage: welcome.text.slice(0, 80),
+      messages: [welcome]
+    };
+    try {
+      const id = await fpush("support_chats", data);
+      activeSupportId = id;
+      document.getElementById("sup-welcome").classList.add("hidden");
+      document.getElementById("sup-chat").classList.remove("hidden");
+      document.getElementById("sup-chat-meta").textContent = issueType + " · OPEN";
+      document.getElementById("sup-prompt").classList.remove("hidden");
+      renderSupRoom();
+      toast("Chat started");
+    } catch (e) {
+      showError("Could not start chat — check connection");
+      setConn(false);
+    }
+  };
+});
+
+function openSupportChat(id) {
+  activeSupportId = id;
+  const c = myChats[id];
+  document.getElementById("sup-welcome").classList.add("hidden");
+  document.getElementById("sup-chat").classList.remove("hidden");
+  document.getElementById("sup-chat-meta").textContent = (c && c.issueType ? c.issueType : "") + " · " + (c && c.status ? c.status.toUpperCase() : "");
+  document.getElementById("sup-prompt").classList.toggle("hidden", !(c && c.status === "open"));
+  const inputBar = document.getElementById("sup-input").parentElement;
+  if (inputBar) inputBar.style.display = (c && c.status === "open") ? "flex" : "none";
+  renderSupRoom();
+}
+
+document.getElementById("sup-back").onclick = () => {
+  activeSupportId = null;
+  document.getElementById("sup-welcome").classList.remove("hidden");
+  document.getElementById("sup-chat").classList.add("hidden");
+  renderSupHistory();
+};
+
+function escapeHtml(s) {
+  return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+}
+
+function renderSupRoom() {
+  const c = myChats[activeSupportId];
+  if (!c) return;
+  document.getElementById("sup-chat-meta").textContent = (c.issueType || "") + " · " + (c.status || "").toUpperCase();
+  document.getElementById("sup-prompt").classList.toggle("hidden", c.status !== "open");
+  const inputBar = document.getElementById("sup-input").parentElement;
+  if (inputBar) inputBar.style.display = c.status === "open" ? "flex" : "none";
+
+  const box = document.getElementById("sup-msgs");
+  const msgs = c.messages || [];
+  box.innerHTML = msgs.map(m => {
+    const me = m.from === "user";
+    return '<div class="flex ' + (me ? "justify-end" : "justify-start") + '">'
+      + '<div class="sup-bubble ' + (me ? "sup-me" : "sup-them") + '">'
+      + '<div class="text-[10px] opacity-70 mb-1">' + (me ? (session.name || "You") : (m.name || devProfile.name || "Eshaal")) + " · " + (m.ts ? new Date(m.ts).toLocaleTimeString() : "") + "</div>"
+      + (m.text ? "<div>" + escapeHtml(m.text) + "</div>" : "")
+      + (m.image ? '<img class="sup-img" src="' + m.image + '" alt="img">' : "")
+      + "</div></div>";
+  }).join("") || '<div class="text-center text-slate-400 py-8 text-sm">No messages yet</div>';
+  box.scrollTop = box.scrollHeight;
+}
+
+async function sendUserMsg(text, image) {
+  if (!activeSupportId) return;
+  const c = myChats[activeSupportId];
+  if (!c || c.status !== "open") { showError("Chat is closed"); return; }
+  const msg = {
+    from: "user",
+    text: text || "",
+    image: image || null,
+    ts: Date.now(),
+    name: session.name || session.username
+  };
+  const messages = (c.messages || []).concat([msg]);
+  try {
+    await db.ref("support_chats/" + activeSupportId).update({
+      messages,
+      lastMessage: text || "[image]",
+      updatedAt: Date.now()
+    });
+  } catch (e) {
+    showError("Send failed");
+    setConn(false);
+  }
+}
+
+document.getElementById("sup-send").onclick = async () => {
+  const inp = document.getElementById("sup-input");
+  const t = (inp.value || "").trim();
+  if (!t) return;
+  inp.value = "";
+  await sendUserMsg(t, null);
+};
+document.getElementById("sup-input").onkeydown = e => {
+  if (e.key === "Enter") document.getElementById("sup-send").click();
+};
+document.getElementById("sup-img").onchange = async function () {
+  const f = this.files && this.files[0];
+  if (!f) return;
+  if (f.size > 900000) { showError("Image too large (max ~900KB)"); this.value = ""; return; }
+  const reader = new FileReader();
+  reader.onload = async () => {
+    await sendUserMsg("", reader.result);
+    this.value = "";
+  };
+  reader.readAsDataURL(f);
+};
+
+})();
+</script>
+</body>
+  </html>
