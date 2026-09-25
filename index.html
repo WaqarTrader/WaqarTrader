@@ -320,11 +320,11 @@
             <div class="card overflow-hidden flex flex-col" style="height:calc(100vh - 140px);min-height:420px">
               <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-3 bg-white">
                 <button type="button" id="sup-back" class="btn btn-ghost text-xs px-2"><i class="fa-solid fa-arrow-left"></i></button>
-                <div class="w-10 h-10 rounded-xl overflow-hidden border-2 border-cyan-400 flex-shrink-0">
-                  <img id="sup-chat-avatar" src="https://ui-avatars.com/api/?name=Eshaal&background=0891b2&color=fff&size=80" class="w-full h-full object-cover" alt="">
+                <div id="sup-hdr-avatar-wrap" class="w-10 h-10 rounded-xl overflow-hidden border-2 border-slate-200 flex-shrink-0 hidden">
+                  <img id="sup-chat-avatar" src="" class="w-full h-full object-cover" alt="">
                 </div>
                 <div class="flex-1 min-w-0">
-                  <div class="font-black text-sm text-slate-900">Eshaal · Developer</div>
+                  <div id="sup-chat-name" class="font-black text-sm text-slate-900">Support</div>
                   <div id="sup-chat-meta" class="text-[11px] text-slate-500">—</div>
                 </div>
               </div>
@@ -1608,11 +1608,10 @@ document.getElementById("idle-save").onclick = function () {
 
 // ========== COMPLAINTS / SUPPORT ==========
 function applyDevAvatar() {
-  const url = devProfile.avatar || ("https://ui-avatars.com/api/?name=" + encodeURIComponent(devProfile.name || "Eshaal") + "&background=0891b2&color=fff&size=112");
+  // Welcome screen optional avatar only — chat header controlled by renderSupRoom
+  const url = devProfile.avatar || ("https://ui-avatars.com/api/?name=" + encodeURIComponent(devProfile.name || "Support") + "&background=0891b2&color=fff&size=112");
   const a = document.getElementById("sup-dev-avatar");
-  const b = document.getElementById("sup-chat-avatar");
   if (a) a.src = url;
-  if (b) b.src = url;
 }
 
 function renderSupHistory() {
@@ -1637,13 +1636,7 @@ function renderSupHistory() {
 document.querySelectorAll("#sup-options [data-issue]").forEach(btn => {
   btn.onclick = async () => {
     const issueType = btn.getAttribute("data-issue");
-    // Start new chat
-    const welcome = {
-      from: "developer",
-      text: "Assalam o Alaikum, dear Waqar Trader — I'm Eshaal. I hope you're doing well.\nHum aapki kya madad kar sakte hain?",
-      ts: Date.now(),
-      name: devProfile.name || "Eshaal"
-    };
+    // Start new chat — no developer name/DP until developer replies
     const data = {
       userId: session.id,
       userName: session.name || session.username,
@@ -1651,8 +1644,8 @@ document.querySelectorAll("#sup-options [data-issue]").forEach(btn => {
       status: "open",
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      lastMessage: welcome.text.slice(0, 80),
-      messages: [welcome]
+      lastMessage: "",
+      messages: []
     };
     try {
       const id = await fpush("support_chats", data);
@@ -1701,13 +1694,44 @@ function renderSupRoom() {
   const inputBar = document.getElementById("sup-input").parentElement;
   if (inputBar) inputBar.style.display = c.status === "open" ? "flex" : "none";
 
-  const box = document.getElementById("sup-msgs");
+  // Header: no name/DP until a developer message exists — then show that developer's name + DP
   const msgs = c.messages || [];
+  const lastDev = [...msgs].reverse().find(m => m.from === "developer");
+  const hdrName = document.getElementById("sup-chat-name");
+  const hdrWrap = document.getElementById("sup-hdr-avatar-wrap");
+  const hdrImg = document.getElementById("sup-chat-avatar");
+  if (lastDev) {
+    const dname = lastDev.name || "Developer";
+    const davatar = lastDev.avatar || ("https://ui-avatars.com/api/?name=" + encodeURIComponent(dname) + "&background=0891b2&color=fff&size=80");
+    if (hdrName) hdrName.textContent = dname;
+    if (hdrWrap) hdrWrap.classList.remove("hidden");
+    if (hdrImg) hdrImg.src = davatar;
+  } else {
+    if (hdrName) hdrName.textContent = "Support";
+    if (hdrWrap) hdrWrap.classList.add("hidden");
+    if (hdrImg) hdrImg.removeAttribute("src");
+  }
+
+  const box = document.getElementById("sup-msgs");
   box.innerHTML = msgs.map(m => {
     const me = m.from === "user";
-    return '<div class="flex ' + (me ? "justify-end" : "justify-start") + '">'
-      + '<div class="sup-bubble ' + (me ? "sup-me" : "sup-them") + '">'
-      + '<div class="text-[10px] opacity-70 mb-1">' + (me ? (session.name || "You") : (m.name || devProfile.name || "Eshaal")) + " · " + (m.ts ? new Date(m.ts).toLocaleTimeString() : "") + "</div>"
+    const time = m.ts ? new Date(m.ts).toLocaleTimeString() : "";
+    if (me) {
+      // User message: no name, no DP — only text/image + time
+      return '<div class="flex justify-end">'
+        + '<div class="sup-bubble sup-me">'
+        + (m.text ? "<div>" + escapeHtml(m.text) + "</div>" : "")
+        + (m.image ? '<img class="sup-img" src="' + m.image + '" alt="img">' : "")
+        + (time ? '<div class="text-[10px] opacity-60 mt-1 text-right">' + time + "</div>" : "")
+        + "</div></div>";
+    }
+    // Developer message: show DP + name
+    const dname = m.name || "Developer";
+    const davatar = m.avatar || ("https://ui-avatars.com/api/?name=" + encodeURIComponent(dname) + "&background=0891b2&color=fff&size=64");
+    return '<div class="flex justify-start gap-2 items-end">'
+      + '<img src="' + davatar + '" alt="" class="w-8 h-8 rounded-lg object-cover border border-slate-200 flex-shrink-0">'
+      + '<div class="sup-bubble sup-them">'
+      + '<div class="text-[10px] font-bold text-cyan-700 mb-1">' + escapeHtml(dname) + (time ? " · " + time : "") + "</div>"
       + (m.text ? "<div>" + escapeHtml(m.text) + "</div>" : "")
       + (m.image ? '<img class="sup-img" src="' + m.image + '" alt="img">' : "")
       + "</div></div>";
@@ -1764,4 +1788,4 @@ document.getElementById("sup-img").onchange = async function () {
 })();
 </script>
 </body>
-  </html>
+</html>
