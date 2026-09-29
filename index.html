@@ -74,6 +74,7 @@
   .ord-cust{font-size:12px;font-weight:600;color:#334155;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .ord-st{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0}
   .ord-st.p{color:#b45309}.ord-st.d{color:#047857}
+  .ord-filter.on{background:#fff7ed;border-color:#f59e0b;color:#b45309}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:10px;font-weight:700;font-size:13px;padding:10px 14px;cursor:pointer}
@@ -154,6 +155,11 @@
         <i class="fa-solid fa-eye" id="icon-pass-eye"></i>
       </button>
     </div>
+    <div class="login-field" id="key-field-wrap" style="display:none">
+      <i class="fa-solid fa-key"></i>
+      <input id="in-key" placeholder="Software key (contact developer)" autocomplete="off" style="text-transform:uppercase">
+    </div>
+    <p id="key-hint" class="text-[11px] text-center text-amber-800 hidden mb-2">Software key required every 3 months — contact developer</p>
     <button id="btn-login" class="login-btn" type="button">SIGN IN</button>
     <p id="login-err" class="text-red-600 text-xs text-center mt-3 hidden"></p>
     <div class="login-foot">WAQAR TRADER · DAULTALA · V2.0<br>© Waqar Trader Cosmetics</div>
@@ -297,6 +303,7 @@
       <section id="pg-bills" class="pg hidden">
         <h2 class="text-lg font-black mb-3">Bills</h2>
         <div class="flex flex-wrap gap-2 mb-3 items-center">
+          <select id="bill-year" class="max-w-[100px] text-sm mr-2"></select>
           <input id="bill-q" class="max-w-xs" placeholder="Search bill / customer / cashier">
           <input id="bill-date" type="date" class="max-w-[10rem]">
           <button id="btn-today" class="btn btn-ghost text-xs">Today</button>
@@ -420,7 +427,12 @@
           <h2 class="text-lg font-black">Sales Orders</h2>
           <input type="date" id="ord-date" class="max-w-[160px] text-sm">
         </div>
-        <p class="text-xs text-slate-500 mb-3">Order Sheet se aane wale orders · Pending hamesha list mein · Complete ke baad lock</p>
+        <div class="flex gap-2 mb-3 flex-wrap">
+          <button type="button" class="btn btn-ghost text-xs ord-filter on" data-of="all">All Orders</button>
+          <button type="button" class="btn btn-ghost text-xs ord-filter" data-of="pending">Pending</button>
+          <button type="button" class="btn btn-ghost text-xs ord-filter" data-of="completed">Complete</button>
+        </div>
+        <p class="text-xs text-slate-500 mb-3">Pending always visible · filters for check</p>
         <div id="ord-list" class="space-y-2"></div>
       </section>
 
@@ -467,8 +479,7 @@
   <div class="modal-box space-y-3 text-center" style="max-width:400px">
     <div class="font-black text-lg text-slate-900" id="cl-pop-title">Update</div>
     <div id="cl-pop-body" class="text-sm text-slate-700 text-left leading-relaxed max-h-60 overflow-y-auto"></div>
-    <div id="cl-pop-loading" class="text-xs text-amber-700 font-bold">Loading… <span id="cl-pop-sec">15</span>s</div>
-    <button type="button" id="cl-pop-ok" class="btn btn-primary w-full py-2.5" style="display:none">OK</button>
+    <button type="button" id="cl-pop-ok" class="btn btn-primary w-full py-2.5">Close</button>
   </div>
 </div>
 
@@ -729,6 +740,56 @@ function applyPortalBranding(cfg) {
   }
 }
 
+
+function currentQuarter() {
+  const d = new Date();
+  const q = Math.floor(d.getMonth() / 3) + 1;
+  return d.getFullYear() + "-Q" + q;
+}
+function loadLicenseAndKeyField() {
+  db.ref("software_license").once("value").then(snap => {
+    softwareLicense = snap.exists() ? (snap.val() || {}) : {};
+    const need = !!(softwareLicense.key && softwareLicense.key.length);
+    const stored = localStorage.getItem("wt_software_key") || "";
+    const ok = need && stored === softwareLicense.key;
+    const wrap = document.getElementById("key-field-wrap");
+    const hint = document.getElementById("key-hint");
+    if (need && !ok) {
+      if (wrap) wrap.style.display = "flex";
+      if (hint) hint.classList.remove("hidden");
+    } else {
+      if (wrap) wrap.style.display = "none";
+      if (hint) hint.classList.add("hidden");
+    }
+  }).catch(() => {});
+}
+// live license
+db.ref("software_license").on("value", snap => {
+  softwareLicense = snap.exists() ? (snap.val() || {}) : {};
+  if (!session) loadLicenseAndKeyField();
+});
+
+
+
+function checkSoftwareKey() {
+  const need = !!(softwareLicense && softwareLicense.key);
+  if (!need) return true;
+  const entered = (document.getElementById("in-key") && document.getElementById("in-key").value || "").trim().toUpperCase();
+  const stored = (localStorage.getItem("wt_software_key") || "").toUpperCase();
+  const want = String(softwareLicense.key || "").trim().toUpperCase();
+  if (entered && entered === want) {
+    localStorage.setItem("wt_software_key", softwareLicense.key);
+    return true;
+  }
+  if (stored && stored === want) return true;
+  // show key field
+  const wrap = document.getElementById("key-field-wrap");
+  const hint = document.getElementById("key-hint");
+  if (wrap) wrap.style.display = "flex";
+  if (hint) hint.classList.remove("hidden");
+  return false;
+}
+
 function showLogin() {
   stopIdleWatch();
   if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
@@ -751,7 +812,29 @@ function showLogin() {
   db.ref("portal_settings").off();
   db.ref("changelogs").off();
 }
+
+function applyUserPermissions() {
+  if (!session) return;
+  const p = session.permissions || {};
+  const map = {
+    "orders": "salesOrders",
+    "summary": "summary",
+    "bills": "bills",
+    "products": "products"
+  };
+  document.querySelectorAll(".nav-item[data-p]").forEach(btn => {
+    const page = btn.getAttribute("data-p");
+    const key = map[page];
+    if (!key) return;
+    if (p[key] === false) btn.style.display = "none";
+    else btn.style.display = "";
+  });
+}
+
 function showApp() {
+  applyUserPermissions();
+  refreshBillSeq();
+  fillBillYearSelect();
   document.getElementById("sc-login").classList.remove("on");
   document.getElementById("sc-login").style.display = "none";
   document.getElementById("sc-app").classList.add("on");
@@ -812,6 +895,14 @@ document.getElementById("btn-login").onclick = function () {
     localStorage.setItem("wt_user_session", JSON.stringify(session));
     lastActivity = Date.now();
     persistLastActivity();
+    if (!checkSoftwareKey()) {
+      const err = document.getElementById("login-err");
+      if (err) { err.textContent = "Enter valid software key (contact developer)"; err.classList.remove("hidden"); }
+      showError("Software key required — contact developer");
+      session = null;
+      localStorage.removeItem("wt_user_session");
+      return;
+    }
     localStorage.setItem("wt_last_login", String(now));
     showApp();
     return;
@@ -843,11 +934,20 @@ document.getElementById("btn-login").onclick = function () {
       name: found.name || found.username,
       role: found.role || "user",
       discountLimit: Number(found.discountLimit || 5),
+      permissions: found.permissions || {},
       lastLogin: now
     };
     localStorage.setItem("wt_user_session", JSON.stringify(session));
     lastActivity = Date.now();
     persistLastActivity();
+    if (!checkSoftwareKey()) {
+      const err = document.getElementById("login-err");
+      if (err) { err.textContent = "Enter valid software key (contact developer)"; err.classList.remove("hidden"); }
+      showError("Software key required — contact developer");
+      session = null;
+      localStorage.removeItem("wt_user_session");
+      return;
+    }
     localStorage.setItem("wt_last_login", String(now));
     showApp();
   }).catch(e => {
@@ -1040,21 +1140,7 @@ function checkNewChangelogPopup(m) {
   if (!modal || modal.classList.contains("on")) return;
   document.getElementById("cl-pop-title").textContent = newest.title || "Update";
   document.getElementById("cl-pop-body").innerHTML = newest.body || "";
-  document.getElementById("cl-pop-loading").style.display = "block";
-  document.getElementById("cl-pop-ok").style.display = "none";
   modal.classList.add("on");
-  let sec = 15;
-  document.getElementById("cl-pop-sec").textContent = String(sec);
-  const t = setInterval(function () {
-    sec--;
-    const s = document.getElementById("cl-pop-sec");
-    if (s) s.textContent = String(sec);
-    if (sec <= 0) {
-      clearInterval(t);
-      document.getElementById("cl-pop-loading").style.display = "none";
-      document.getElementById("cl-pop-ok").style.display = "block";
-    }
-  }, 1000);
   document.getElementById("cl-pop-ok").onclick = function () {
     modal.classList.remove("on");
     seen.push(newest.id);
@@ -1062,8 +1148,62 @@ function checkNewChangelogPopup(m) {
   };
 }
 
+
+// ========== MONTHLY BILL REFS (J-1, F-1, … per year) ==========
+const MONTH_LETTERS = ["J","F","M","A","Y","U","L","G","S","O","N","D"];
+function monthLetter(d) {
+  d = d || new Date();
+  return MONTH_LETTERS[d.getMonth()] || "X";
+}
+function billYear(d) {
+  d = d || new Date();
+  return d.getFullYear();
+}
+let billMonthSeq = 1; // next number for current month/year
+let viewBillYear = new Date().getFullYear();
+let softwareLicense = { key: "", quarter: "" };
+
+function billCounterPath(y, letter) {
+  return "meta/billCounters/" + y + "/" + letter;
+}
+async function refreshBillSeq() {
+  const y = billYear();
+  const L = monthLetter();
+  try {
+    const snap = await db.ref(billCounterPath(y, L)).once("value");
+    billMonthSeq = Math.max(1, Number(snap.val() || 0) + 1);
+  } catch (e) {
+    billMonthSeq = 1;
+  }
+  nextBill();
+}
 function nextBill() {
-  document.getElementById("sale-no").textContent = "B" + String(nextSeq).padStart(5, "0");
+  const L = monthLetter();
+  const el = document.getElementById("sale-no");
+  if (el) el.textContent = L + "-" + billMonthSeq;
+}
+function formatBillNo(seq, d) {
+  d = d || new Date();
+  return monthLetter(d) + "-" + seq;
+}
+
+
+
+
+function fillBillYearSelect() {
+  const sel = document.getElementById("bill-year");
+  if (!sel) return;
+  const years = new Set([new Date().getFullYear()]);
+  Object.values(bills).forEach(b => {
+    if (b.billYear) years.add(Number(b.billYear));
+    else if (b.date) years.add(Number(String(b.date).slice(0, 4)));
+    else if (b.ts) years.add(new Date(b.ts).getFullYear());
+  });
+  const sorted = [...years].sort((a, b) => b - a);
+  const cur = sel.value || String(viewBillYear);
+  sel.innerHTML = sorted.map(y => '<option value="' + y + '">' + y + '</option>').join("");
+  if (sorted.indexOf(Number(cur)) >= 0) sel.value = cur;
+  else if (sorted.length) { sel.value = String(sorted[0]); viewBillYear = sorted[0]; }
 }
 
 function fillCust() {
@@ -1468,10 +1608,20 @@ document.getElementById("btn-save").onclick = async function () {
       if (!custAddr) custAddr = customers[custId].address || "";
     }
   }
-  const billNo = "B" + String(nextSeq).padStart(5, "0");
+  const y = billYear();
+  const L = monthLetter();
+  // reserve next seq atomically
+  let reservedSeq = billMonthSeq;
+  try {
+    const tx = await db.ref(billCounterPath(y, L)).transaction(c => Math.max(Number(c || 0) + 1, 1));
+    reservedSeq = tx.snapshot ? Number(tx.snapshot.val() || 1) : billMonthSeq;
+  } catch (e) { console.error(e); }
+  const billNo = L + "-" + reservedSeq;
   const bill = {
     billNo,
-    seq: nextSeq,
+    seq: reservedSeq,
+    billYear: y,
+    billMonth: L,
     date: today(),
     ts: Date.now(),
     customerId: custId === "walkin" ? null : custId,
@@ -1509,7 +1659,7 @@ document.getElementById("btn-save").onclick = async function () {
 
   try {
     // Update last bill number
-    await db.ref("meta/lastBillNo").transaction(c => Math.max(Number(c || 1000), nextSeq));
+    // Monthly counters used for bill refs (meta/billCounters)
 
     // Save bill
     const id = await fpush("bills", bill);
@@ -1551,7 +1701,7 @@ document.getElementById("btn-save").onclick = async function () {
     document.getElementById("bill-caddr").value = "";
     document.getElementById("skip-details").checked = false;
     document.getElementById("skip-details").dispatchEvent(new Event("change"));
-    nextSeq++;
+    billMonthSeq = reservedSeq + 1;
     nextBill();
   } catch (e) {
     console.error(e);
@@ -1646,7 +1796,16 @@ function printBill(bill) {
 // ========== BILLS LIST ==========
 function renderBills() {
   // ALL bills from Firebase — no limit, no hide by cashier
-  let rows = Object.values(bills).sort((a, b) => {
+  fillBillYearSelect();
+  const ySel = document.getElementById("bill-year");
+  viewBillYear = Number((ySel && ySel.value) || viewBillYear || new Date().getFullYear());
+  let rows = Object.values(bills).filter(b => {
+    let y = b.billYear;
+    if (!y && b.date) y = Number(String(b.date).slice(0, 4));
+    if (!y && b.ts) y = new Date(b.ts).getFullYear();
+    if (!y && b.billNo && String(b.billNo).match(/^B\d/)) y = viewBillYear; // legacy show in selected year
+    return Number(y) === Number(viewBillYear);
+  }).sort((a, b) => {
     const ta = Number(a.ts || a.createdAt || 0);
     const tb = Number(b.ts || b.createdAt || 0);
     return tb - ta || String(b.billNo || "").localeCompare(String(a.billNo || ""));
@@ -1712,6 +1871,8 @@ function renderBills() {
     };
   });
 }
+const billYearEl = document.getElementById("bill-year");
+if (billYearEl) billYearEl.onchange = function () { viewBillYear = Number(this.value) || new Date().getFullYear(); renderBills(); };
 document.getElementById("bill-q").oninput = renderBills;
 document.getElementById("bill-date").onchange = renderBills;
 document.getElementById("btn-today").onclick = () => {
@@ -1826,12 +1987,23 @@ document.getElementById("idle-save").onclick = function () {
 
 
 // ========== SALES ORDERS (from Order Sheet) ==========
+let ordFilterMode = "all";
+document.querySelectorAll(".ord-filter").forEach(btn => {
+  btn.onclick = function () {
+    document.querySelectorAll(".ord-filter").forEach(b => b.classList.remove("on"));
+    btn.classList.add("on");
+    ordFilterMode = btn.getAttribute("data-of") || "all";
+    renderCashierOrders();
+  };
+});
 function renderCashierOrders() {
   const dayEl = document.getElementById("ord-date");
   const day = (dayEl && dayEl.value) || today();
   const list = Object.values(saleOrders).filter(o => {
-    if (o.status === "pending") return true;
-    return (o.date || "") === day;
+    const st = o.status || "pending";
+    if (ordFilterMode === "pending") return st !== "completed";
+    if (ordFilterMode === "completed") return st === "completed";
+    return true; // all
   }).sort((a, b) => (b.ts || 0) - (a.ts || 0));
   const el = document.getElementById("ord-list");
   if (!el) return;
