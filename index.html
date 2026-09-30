@@ -15,6 +15,28 @@
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+  /* Compact ERP-like density */
+  body{font-size:12.5px}
+  .card{border-radius:8px;box-shadow:none}
+  .btn{padding:6px 10px;font-size:12px;border-radius:6px;gap:4px}
+  input,select,textarea{padding:6px 8px;font-size:12.5px;border-radius:6px}
+  .label{font-size:10px;margin-bottom:2px}
+  .nav-item{padding:7px 10px;font-size:12px;gap:8px;border-radius:6px}
+  th{padding:6px 8px;font-size:10px}
+  td{padding:5px 8px;font-size:12px}
+  header.no-print{padding:6px 12px!important}
+  main{padding:8px!important}
+  .side-nav{width:44px}
+  .side-nav:hover, .side-nav.locked{width:10.5rem}
+  .side-lock{padding:5px;font-size:10px;margin-bottom:4px}
+  #product-panel{max-height:200px}
+  #product-panel .pi{padding:6px 8px;font-size:12px}
+  .hdr-meta{font-size:10px}
+  .sup-bubble{padding:7px 10px;font-size:12px;border-radius:10px}
+  h2{font-size:1rem!important}
+  .login-glass{padding:22px 18px;max-width:360px}
+
   .screen{display:none!important}.screen.on{display:flex!important}
 
   /* Cosmetics portal login */
@@ -121,10 +143,11 @@
   .side-nav.locked .side-lock{background:#fff7ed;color:#b45309;border-color:#fcd34d}
   /* Agent reply popup */
   #agent-pop{
-    position:fixed;right:16px;bottom:16px;z-index:320;display:none;
-    max-width:300px;width:calc(100% - 32px);
+    position:fixed;right:12px;bottom:12px;z-index:320;display:none;
+    max-width:280px;width:calc(100% - 24px);
   }
-  #agent-pop.on{display:block;animation:agentShake .5s ease}
+  #agent-pop.on{display:block;animation:agentShake .45s ease}
+  #agent-pop.still{display:block}
   @keyframes agentShake{
     0%,100%{transform:translateX(0)}
     20%{transform:translateX(-6px)}
@@ -345,7 +368,7 @@
                   <button type="button" id="btn-hold" class="btn btn-ghost flex-1 text-xs">Hold</button>
                   <button type="button" id="btn-resume" class="btn btn-ghost flex-1 text-xs">Resume</button>
                 </div>
-                <button id="btn-save" class="btn btn-primary w-full py-3 mt-2">Save & Print (Ctrl+S)</button>
+                <button id="btn-save" class="btn btn-primary w-full py-2 mt-1.5 text-sm">Save & Print (Ctrl+S)</button>
                 <button type="button" id="btn-reprint-last" class="btn btn-ghost w-full text-xs mt-2">Reprint Last Bill</button>
               </div>
             </div>
@@ -553,20 +576,19 @@
 
 
 
-<!-- WhatsApp Share -->
-<div id="md-wa" class="modal">
-  <div class="modal-box space-y-3" style="max-width:400px">
-    <div class="font-black text-lg">Share bill on WhatsApp</div>
-    <p class="text-xs text-slate-500">Bill <b id="wa-billno">—</b></p>
-    <div class="label">Customer number</div>
-    <input id="wa-cust" placeholder="03XXXXXXXXX" class="mb-2">
-    <div class="label">Other number (optional)</div>
-    <input id="wa-other" placeholder="Other WhatsApp number">
-    <div class="flex gap-2 mt-2">
-      <button type="button" id="wa-send-cust" class="btn btn-primary flex-1"><i class="fa-brands fa-whatsapp"></i> Customer</button>
-      <button type="button" id="wa-send-other" class="btn btn-ghost flex-1"><i class="fa-brands fa-whatsapp"></i> Other</button>
+
+<!-- Save bill image -->
+<div id="md-bill-img" class="modal">
+  <div class="modal-box space-y-2" style="max-width:380px">
+    <div class="font-black text-base">Bill saved · <span id="bi-no">—</span></div>
+    <p class="text-xs text-slate-500">Image download + clipboard copy — WhatsApp mein Ctrl+V</p>
+    <div id="bi-preview" class="border rounded-lg bg-white overflow-auto max-h-48 text-[10px] p-2"></div>
+    <canvas id="bi-canvas" class="hidden"></canvas>
+    <div class="flex gap-2">
+      <button type="button" id="bi-save" class="btn btn-primary flex-1 text-xs"><i class="fa-solid fa-download"></i> Save Image</button>
+      <button type="button" id="bi-copy" class="btn btn-ghost flex-1 text-xs"><i class="fa-solid fa-copy"></i> Copy</button>
     </div>
-    <button type="button" id="wa-close" class="btn btn-ghost w-full text-xs">Close</button>
+    <button type="button" id="bi-close" class="btn btn-ghost w-full text-xs">Close</button>
   </div>
 </div>
 
@@ -1193,6 +1215,7 @@ function go(page) {
   }
   if (page === "summary") renderSum();
   if (page === "support") {
+    // popup stays until chat opened (markAgentMessagesRead on openSupportChat)
     activeSupportId = null;
     document.getElementById("sup-welcome").classList.remove("hidden");
     document.getElementById("sup-chat").classList.add("hidden");
@@ -1836,7 +1859,7 @@ document.getElementById("btn-save").onclick = async function () {
     toast("Bill " + billNo + " saved");
     lastPrintedBill = Object.assign({}, bill, { id });
     printBill(lastPrintedBill);
-    openWhatsAppShare(lastPrintedBill);
+    openBillImageShare(lastPrintedBill);
 
     // Auto-complete linked sale order
     if (linkedOrderId) {
@@ -2354,64 +2377,118 @@ document.getElementById("pend-close").onclick = () => document.getElementById("m
   };
 })();
 
-// ========== WHATSAPP SHARE ==========
-function openWhatsAppShare(bill) {
+
+// ========== SAVE BILL AS IMAGE (download + clipboard for WhatsApp Ctrl+V) ==========
+function openBillImageShare(bill) {
   if (!bill) return;
-  const el = document.getElementById("md-wa");
-  if (!el) return;
-  document.getElementById("wa-billno").textContent = bill.billNo || "—";
-  document.getElementById("wa-cust").value = (bill.customerPhone || "").replace(/\D/g, "");
-  document.getElementById("wa-other").value = "";
-  el.classList.add("on");
-  window._waBill = bill;
+  window._imgBill = bill;
+  const modal = document.getElementById("md-bill-img");
+  if (!modal) return;
+  document.getElementById("bi-no").textContent = bill.billNo || "—";
+  const prev = document.getElementById("bi-preview");
+  if (prev) prev.innerHTML = buildBillHtmlPreview(bill);
+  modal.classList.add("on");
+  // prepare canvas async
+  setTimeout(function () { renderBillToCanvas(bill); }, 50);
 }
-function buildWaText(bill) {
-  const lines = [];
-  lines.push("*WAQAR TRADER · DAULTALA*");
-  lines.push("Bill: " + (bill.billNo || ""));
-  lines.push("Date: " + (bill.date || new Date(bill.ts || Date.now()).toLocaleString()));
-  if (bill.customerName) lines.push("Customer: " + bill.customerName);
-  lines.push("");
-  (bill.items || []).forEach((it, i) => {
-    lines.push((i + 1) + ". " + (it.name || "") + " x" + it.qty + " = " + money(it.amount || it.rate * it.qty));
+function buildBillHtmlPreview(bill) {
+  let h = "<b>WAQAR TRADER · DAULTALA</b><br>Bill " + (bill.billNo || "") + " · " + (bill.date || "") + "<br>";
+  if (bill.customerName) h += bill.customerName + "<br>";
+  h += "<hr>";
+  (bill.items || []).forEach(function (it, i) {
+    h += (i + 1) + ". " + (it.name || "") + " x" + it.qty + " = " + money(it.amount || it.rate * it.qty) + "<br>";
   });
-  lines.push("");
-  lines.push("*Total: " + money(bill.grandTotal) + "*");
-  if (bill.paid != null) lines.push("Paid: " + money(bill.paid));
-  if (bill.balance) lines.push("Balance: " + money(bill.balance));
-  return lines.join("\n");
+  h += "<hr><b>Total: " + money(bill.grandTotal) + "</b>";
+  return h;
 }
-function normalizePkPhone(num) {
-  let n = String(num || "").replace(/\D/g, "");
-  if (n.startsWith("0")) n = "92" + n.slice(1);
-  if (n.length === 10) n = "92" + n;
-  return n;
+function renderBillToCanvas(bill) {
+  const c = document.getElementById("bi-canvas");
+  if (!c) return null;
+  const W = 420, pad = 16, lineH = 18;
+  const items = bill.items || [];
+  const H = pad * 2 + 120 + items.length * lineH + 60;
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 18px Arial";
+  ctx.fillText("WAQAR TRADER", pad, pad + 18);
+  ctx.font = "bold 12px Arial";
+  ctx.fillText("DAULTALA", pad, pad + 36);
+  ctx.font = "12px Arial";
+  ctx.fillText("Bill: " + (bill.billNo || "") + "  |  " + (bill.date || ""), pad, pad + 56);
+  if (bill.customerName) ctx.fillText("Customer: " + bill.customerName, pad, pad + 74);
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.beginPath(); ctx.moveTo(pad, pad + 84); ctx.lineTo(W - pad, pad + 84); ctx.stroke();
+  let y = pad + 104;
+  ctx.font = "12px Arial";
+  items.forEach(function (it, i) {
+    const line = (i + 1) + ". " + (it.name || "").slice(0, 28) + "  x" + it.qty + "  " + money(it.amount || it.rate * it.qty);
+    ctx.fillText(line, pad, y);
+    y += lineH;
+  });
+  ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(W - pad, y); ctx.stroke();
+  y += 22;
+  ctx.font = "bold 14px Arial";
+  ctx.fillText("TOTAL: " + money(bill.grandTotal), pad, y);
+  if (bill.paid != null) {
+    y += 18;
+    ctx.font = "12px Arial";
+    ctx.fillText("Paid: " + money(bill.paid) + (bill.balance ? "  Balance: " + money(bill.balance) : ""), pad, y);
+  }
+  return c;
 }
-function sendWhatsApp(num) {
-  const bill = window._waBill;
+function canvasToBlob(canvas) {
+  return new Promise(function (resolve) {
+    canvas.toBlob(function (b) { resolve(b); }, "image/png");
+  });
+}
+async function saveBillImageDownload() {
+  const bill = window._imgBill;
   if (!bill) return;
-  const phone = normalizePkPhone(num);
-  if (!phone || phone.length < 10) { showError("Valid number enter karein"); return; }
-  const text = encodeURIComponent(buildWaText(bill));
-  window.open("https://wa.me/" + phone + "?text=" + text, "_blank");
+  const c = renderBillToCanvas(bill) || document.getElementById("bi-canvas");
+  const blob = await canvasToBlob(c);
+  if (!blob) { showError("Image ban nahi saki"); return; }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "Bill-" + (bill.billNo || "WT") + ".png";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast("Image downloaded");
+}
+async function copyBillImageClipboard() {
+  const bill = window._imgBill;
+  if (!bill) return;
+  const c = renderBillToCanvas(bill) || document.getElementById("bi-canvas");
+  try {
+    const blob = await canvasToBlob(c);
+    if (navigator.clipboard && window.ClipboardItem) {
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      toast("Copied — WhatsApp mein Ctrl+V");
+    } else {
+      // fallback download
+      await saveBillImageDownload();
+      toast("Clipboard not supported — image downloaded");
+    }
+  } catch (e) {
+    console.error(e);
+    showError("Copy fail — Save Image use karein (HTTPS chahiye)");
+  }
 }
 (function () {
-  const a = document.getElementById("wa-send-cust");
-  const b = document.getElementById("wa-send-other");
-  const c = document.getElementById("wa-close");
-  if (a) a.onclick = function () {
-    sendWhatsApp(document.getElementById("wa-cust").value || (window._waBill && window._waBill.customerPhone));
-  };
-  if (b) b.onclick = function () {
-    sendWhatsApp(document.getElementById("wa-other").value);
-  };
-  if (c) c.onclick = function () {
-    document.getElementById("md-wa").classList.remove("on");
-  };
+  const s = document.getElementById("bi-save");
+  const c = document.getElementById("bi-copy");
+  const x = document.getElementById("bi-close");
+  if (s) s.onclick = function () { saveBillImageDownload(); };
+  if (c) c.onclick = function () { copyBillImageClipboard(); };
+  if (x) x.onclick = function () { document.getElementById("md-bill-img").classList.remove("on"); };
 })();
 
-// ========== AGENT REPLY POPUP ==========
+// ========== AGENT REPLY POPUP (stays until user reads) ==========
 let seenAgentMsgKeys = JSON.parse(localStorage.getItem("wt_seen_agent_msgs") || "[]");
+let pendingAgentUnread = JSON.parse(localStorage.getItem("wt_agent_unread") || "[]");
 function agentMsgKey(chatId, msg) {
   return chatId + "_" + (msg.ts || msg.time || "") + "_" + String(msg.text || msg.message || "").slice(0, 20);
 }
@@ -2423,43 +2500,79 @@ function showAgentPopup(name, avatar, text, count) {
   document.getElementById("agent-pop-qty").textContent = count > 1 ? (count + " new messages") : "1 new message";
   const img = document.getElementById("agent-pop-img");
   if (img) img.src = avatar || ("https://ui-avatars.com/api/?name=" + encodeURIComponent(name || "A") + "&background=0891b2&color=fff&size=96");
-  pop.classList.remove("on");
-  void pop.offsetWidth;
   pop.classList.add("on");
+  pop.classList.add("still");
+  // re-trigger shake
+  pop.style.animation = "none";
+  void pop.offsetWidth;
+  pop.style.animation = "";
+}
+function markAgentMessagesRead() {
+  // merge pending into seen
+  pendingAgentUnread.forEach(function (k) {
+    if (seenAgentMsgKeys.indexOf(k) < 0) seenAgentMsgKeys.push(k);
+  });
+  pendingAgentUnread = [];
+  localStorage.setItem("wt_seen_agent_msgs", JSON.stringify(seenAgentMsgKeys.slice(-300)));
+  localStorage.setItem("wt_agent_unread", "[]");
+  const pop = document.getElementById("agent-pop");
+  if (pop) {
+    pop.classList.remove("on");
+    pop.classList.remove("still");
+  }
 }
 (function () {
   const x = document.getElementById("agent-pop-x");
   const pop = document.getElementById("agent-pop");
-  if (x) x.onclick = function (e) { e.stopPropagation(); pop.classList.remove("on"); };
-  if (pop) pop.onclick = function () { pop.classList.remove("on"); go("support"); };
+  // X only hides visually temporarily but qty stays until read — user asked stay until read
+  // Clicking popup opens support AND marks read
+  if (pop) pop.onclick = function (e) {
+    if (e.target && e.target.id === "agent-pop-x") {
+      e.stopPropagation();
+      // minimize only — still counts as not fully read; keep still class with smaller hint
+      return;
+    }
+    markAgentMessagesRead();
+    go("support");
+  };
+  if (x) x.onclick = function (e) {
+    e.stopPropagation();
+    // hide until next check but unread remains for re-show
+    const pop = document.getElementById("agent-pop");
+    if (pop) pop.classList.remove("on");
+  };
 })();
 
 function checkAgentReplies(chatsMap) {
   if (!session) return;
-  let newCount = 0;
+  let newKeys = [];
   let lastDev = null;
-  Object.values(chatsMap || {}).forEach(c => {
+  Object.values(chatsMap || {}).forEach(function (c) {
     if (c.userId !== session.id && c.userId !== (session.name || session.username)) return;
     const msgs = Array.isArray(c.messages) ? c.messages : (c.messages ? Object.values(c.messages) : []);
-    msgs.forEach(m => {
+    msgs.forEach(function (m) {
       if (!m) return;
       if (m.from === "user" || m.role === "user" || m.sender === "user") return;
       const k = agentMsgKey(c.id, m);
       if (seenAgentMsgKeys.indexOf(k) >= 0) return;
-      seenAgentMsgKeys.push(k);
-      newCount++;
+      if (pendingAgentUnread.indexOf(k) < 0) pendingAgentUnread.push(k);
+      newKeys.push(k);
       lastDev = {
         name: m.senderName || m.name || c.agentName || (typeof devProfile !== "undefined" && devProfile.name) || "Agent",
-        avatar: m.senderAvatar || m.avatar || c.agentAvatar || (typeof devProfile !== "undefined" && devProfile.avatar) || "",
+        avatar: m.senderAvatar || m.avatar || c.agentAvatar || (typeof devProfile !== "undefined" && devProfile.avatar) || window._portalSupportAvatar || "",
         text: m.text || m.message || ""
       };
     });
   });
-  if (newCount > 0 && lastDev) {
-    localStorage.setItem("wt_seen_agent_msgs", JSON.stringify(seenAgentMsgKeys.slice(-200)));
-    showAgentPopup(lastDev.name, lastDev.avatar, lastDev.text, newCount);
+  localStorage.setItem("wt_agent_unread", JSON.stringify(pendingAgentUnread.slice(-100)));
+  const count = pendingAgentUnread.length;
+  if (count > 0 && lastDev) {
+    showAgentPopup(lastDev.name, lastDev.avatar, lastDev.text, count);
+  } else if (count > 0) {
+    showAgentPopup("Agent", "", count + " unread replies", count);
   }
 }
+// When user opens support chat room — mark read
 
 // ========== USER REPORTS ==========
 let userRptType = "daily";
@@ -2563,6 +2676,7 @@ document.querySelectorAll("#sup-options [data-issue]").forEach(btn => {
 });
 
 function openSupportChat(id) {
+  markAgentMessagesRead();
   activeSupportId = id;
   const c = myChats[id];
   document.getElementById("sup-welcome").classList.add("hidden");
