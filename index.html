@@ -76,6 +76,20 @@
   .ord-st.p{color:#b45309}.ord-st.d{color:#047857}
   .ord-filter.on{background:#fff7ed;border-color:#f59e0b;color:#b45309}
 
+  .ord-stat{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:800;background:#f1f5f9;color:#475569;cursor:pointer;border:1px solid #e2e8f0}
+  .ord-stat b{font-size:13px}
+  .ord-stat.on{ring:2px;box-shadow:0 0 0 2px #f59e0b33;border-color:#f59e0b}
+  .ord-stat-p{background:#fff7ed;color:#c2410c;border-color:#fed7aa}
+  .ord-stat-a{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
+  .ord-stat-c{background:#ecfdf5;color:#047857;border-color:#a7f3d0}
+  .ord-stat-x{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+  .st-badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.04em}
+  .st-pending{background:#fff7ed;color:#c2410c}
+  .st-approved{background:#eff6ff;color:#1d4ed8}
+  .st-completed{background:#ecfdf5;color:#047857}
+  .st-cancelled{background:#fef2f2;color:#b91c1c}
+
+
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:10px;font-weight:700;font-size:13px;padding:10px 14px;cursor:pointer}
   .btn:active{transform:scale(.98)}
@@ -424,16 +438,50 @@
 
       <section id="pg-orders" class="pg hidden">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <h2 class="text-lg font-black">Sales Orders</h2>
-          <input type="date" id="ord-date" class="max-w-[160px] text-sm">
+          <div>
+            <h2 class="text-lg font-black text-slate-900">Sale Orders</h2>
+            <p class="text-xs text-slate-500">Manage customer sale orders</p>
+          </div>
         </div>
-        <div class="flex gap-2 mb-3 flex-wrap">
-          <button type="button" class="btn btn-ghost text-xs ord-filter on" data-of="all">All Orders</button>
-          <button type="button" class="btn btn-ghost text-xs ord-filter" data-of="pending">Pending</button>
-          <button type="button" class="btn btn-ghost text-xs ord-filter" data-of="completed">Complete</button>
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+          <span class="ord-stat" data-of="all"><b id="os-total">0</b> TOTAL</span>
+          <span class="ord-stat ord-stat-p" data-of="pending"><b id="os-pend">0</b> PENDING</span>
+          <span class="ord-stat ord-stat-a" data-of="approved"><b id="os-appr">0</b> APPROVED</span>
+          <span class="ord-stat ord-stat-c" data-of="completed"><b id="os-comp">0</b> COMPLETED</span>
+          <span class="ord-stat ord-stat-x" data-of="cancelled"><b id="os-canc">0</b> CANCELLED</span>
         </div>
-        <p class="text-xs text-slate-500 mb-3">Pending always visible · filters for check</p>
-        <div id="ord-list" class="space-y-2"></div>
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+          <input id="ord-q" class="flex-1 min-w-[140px] text-sm" placeholder="Search…">
+          <select id="ord-status" class="text-sm max-w-[130px]">
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <input type="date" id="ord-from" class="text-sm max-w-[140px]">
+          <input type="date" id="ord-to" class="text-sm max-w-[140px]">
+          <button type="button" id="ord-reset" class="btn btn-ghost text-xs">Reset</button>
+        </div>
+        <div class="card overflow-x-auto p-0">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-200">
+                <th class="px-3 py-2.5 font-bold">SO #</th>
+                <th class="px-3 py-2.5 font-bold">Date</th>
+                <th class="px-3 py-2.5 font-bold">Customer</th>
+                <th class="px-3 py-2.5 font-bold">Payment</th>
+                <th class="px-3 py-2.5 font-bold">Delivery</th>
+                <th class="px-3 py-2.5 font-bold text-right">Net Amount</th>
+                <th class="px-3 py-2.5 font-bold">Status</th>
+                <th class="px-3 py-2.5 font-bold">Created By</th>
+                <th class="px-3 py-2.5 font-bold w-10"></th>
+              </tr>
+            </thead>
+            <tbody id="ord-tbody"></tbody>
+          </table>
+          <div id="ord-empty" class="text-center text-slate-400 py-10 text-sm hidden">No orders</div>
+        </div>
       </section>
 
       <section id="pg-logs" class="pg hidden">
@@ -558,6 +606,62 @@ let session = null;
 let products = {};
 let saleOrders = {};
 let linkedOrderId = null;
+
+// ========== MONTHLY BILL REFS (J-1, F-1, … per year) ==========
+const MONTH_LETTERS = ["J","F","M","A","Y","U","L","G","S","O","N","D"];
+function monthLetter(d) {
+  d = d || new Date();
+  return MONTH_LETTERS[d.getMonth()] || "X";
+}
+function billYear(d) {
+  d = d || new Date();
+  return d.getFullYear();
+}
+let billMonthSeq = 1; // next number for current month/year
+let viewBillYear = new Date().getFullYear();
+let softwareLicense = { key: "", quarter: "" };
+
+function billCounterPath(y, letter) {
+  return "meta/billCounters/" + y + "/" + letter;
+}
+async function refreshBillSeq() {
+  const y = billYear();
+  const L = monthLetter();
+  try {
+    const snap = await db.ref(billCounterPath(y, L)).once("value");
+    billMonthSeq = Math.max(1, Number(snap.val() || 0) + 1);
+  } catch (e) {
+    billMonthSeq = 1;
+  }
+  nextBill();
+}
+function nextBill() {
+  const L = monthLetter();
+  const el = document.getElementById("sale-no");
+  if (el) el.textContent = L + "-" + billMonthSeq;
+}
+function formatBillNo(seq, d) {
+  d = d || new Date();
+  return monthLetter(d) + "-" + seq;
+}
+
+function fillBillYearSelect() {
+  const sel = document.getElementById("bill-year");
+  if (!sel) return;
+  const years = new Set([new Date().getFullYear()]);
+  Object.values(bills).forEach(b => {
+    if (b.billYear) years.add(Number(b.billYear));
+    else if (b.date) years.add(Number(String(b.date).slice(0, 4)));
+    else if (b.ts) years.add(new Date(b.ts).getFullYear());
+  });
+  const sorted = [...years].sort((a, b) => b - a);
+  const cur = sel.value || String(viewBillYear);
+  sel.innerHTML = sorted.map(y => '<option value="' + y + '">' + y + '</option>').join("");
+  if (sorted.indexOf(Number(cur)) >= 0) sel.value = cur;
+  else if (sorted.length) { sel.value = String(sorted[0]); viewBillYear = sorted[0]; }
+}
+
+
 let customers = {};
 let bills = {};
 let cart = [];
@@ -684,14 +788,10 @@ let idleListenersOn = false;
 function startIdleWatch() {
   stopIdleWatch();
   loadIdleMinutes();
-  // restore last activity from storage (survives app close / background)
-  lastActivity = loadLastActivity();
-  // if already expired while app was closed, logout immediately
-  if (Date.now() - lastActivity >= idleMinutes * 60 * 1000) {
-    toast("Session expired — logged out (" + idleMinutes + " min idle)");
-    showLogin();
-    return;
-  }
+  // Session stays on refresh / reopen. Idle timer starts only while app is OPEN.
+  // Closing the app does NOT expire session — next open = auto login.
+  lastActivity = Date.now();
+  persistLastActivity();
   idleWarned = false;
   if (!idleListenersOn) {
     IDLE_EVENTS.forEach(ev => document.addEventListener(ev, bumpActivity, { passive: true }));
@@ -703,12 +803,16 @@ function startIdleWatch() {
   const minsInput = document.getElementById("idle-mins");
   if (minsInput) minsInput.value = idleMinutes;
   updateIdleStatus();
-  persistLastActivity();
 }
 function onVisibilitySession() {
   if (!session) return;
-  // when tab/app comes back — re-check real-time idle against stored timestamp
-  checkIdle();
+  // Tab visible again = user returned — reset idle so they are not logged out
+  if (document.visibilityState === "visible") {
+    lastActivity = Date.now();
+    persistLastActivity();
+    idleWarned = false;
+  }
+  updateIdleStatus();
 }
 function stopIdleWatch() {
   if (idleCheckTimer) { clearInterval(idleCheckTimer); idleCheckTimer = null; }
@@ -959,14 +1063,16 @@ document.getElementById("btn-login").onclick = function () {
 };
 document.getElementById("btn-out").onclick = showLogin;
 
-// Restore session
+// Restore session — refresh / reopen = auto login (until manual logout)
 try {
   const s = JSON.parse(localStorage.getItem("wt_user_session") || "null");
-  if (s && s.id) {
+  if (s && (s.id || s.username)) {
     session = s;
     showApp();
   }
-} catch (e) {}
+} catch (e) {
+  console.warn("session restore", e);
+}
 
 // ========== NAV ==========
 function go(page) {
@@ -1149,62 +1255,10 @@ function checkNewChangelogPopup(m) {
 }
 
 
-// ========== MONTHLY BILL REFS (J-1, F-1, … per year) ==========
-const MONTH_LETTERS = ["J","F","M","A","Y","U","L","G","S","O","N","D"];
-function monthLetter(d) {
-  d = d || new Date();
-  return MONTH_LETTERS[d.getMonth()] || "X";
-}
-function billYear(d) {
-  d = d || new Date();
-  return d.getFullYear();
-}
-let billMonthSeq = 1; // next number for current month/year
-let viewBillYear = new Date().getFullYear();
-let softwareLicense = { key: "", quarter: "" };
-
-function billCounterPath(y, letter) {
-  return "meta/billCounters/" + y + "/" + letter;
-}
-async function refreshBillSeq() {
-  const y = billYear();
-  const L = monthLetter();
-  try {
-    const snap = await db.ref(billCounterPath(y, L)).once("value");
-    billMonthSeq = Math.max(1, Number(snap.val() || 0) + 1);
-  } catch (e) {
-    billMonthSeq = 1;
-  }
-  nextBill();
-}
-function nextBill() {
-  const L = monthLetter();
-  const el = document.getElementById("sale-no");
-  if (el) el.textContent = L + "-" + billMonthSeq;
-}
-function formatBillNo(seq, d) {
-  d = d || new Date();
-  return monthLetter(d) + "-" + seq;
-}
 
 
 
 
-function fillBillYearSelect() {
-  const sel = document.getElementById("bill-year");
-  if (!sel) return;
-  const years = new Set([new Date().getFullYear()]);
-  Object.values(bills).forEach(b => {
-    if (b.billYear) years.add(Number(b.billYear));
-    else if (b.date) years.add(Number(String(b.date).slice(0, 4)));
-    else if (b.ts) years.add(new Date(b.ts).getFullYear());
-  });
-  const sorted = [...years].sort((a, b) => b - a);
-  const cur = sel.value || String(viewBillYear);
-  sel.innerHTML = sorted.map(y => '<option value="' + y + '">' + y + '</option>').join("");
-  if (sorted.indexOf(Number(cur)) >= 0) sel.value = cur;
-  else if (sorted.length) { sel.value = String(sorted[0]); viewBillYear = sorted[0]; }
-}
 
 function fillCust() {
   const sel = document.getElementById("sale-cust");
@@ -1988,42 +2042,107 @@ document.getElementById("idle-save").onclick = function () {
 
 // ========== SALES ORDERS (from Order Sheet) ==========
 let ordFilterMode = "all";
-document.querySelectorAll(".ord-filter").forEach(btn => {
+function renderCashierOrders() {
+  const all = Object.values(saleOrders);
+  const counts = { total: all.length, pending: 0, approved: 0, completed: 0, cancelled: 0 };
+  all.forEach(o => {
+    const st = (o.status || "pending").toLowerCase();
+    if (st === "completed") counts.completed++;
+    else if (st === "approved") counts.approved++;
+    else if (st === "cancelled") counts.cancelled++;
+    else counts.pending++;
+  });
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = String(v); };
+  set("os-total", counts.total);
+  set("os-pend", counts.pending);
+  set("os-appr", counts.approved);
+  set("os-comp", counts.completed);
+  set("os-canc", counts.cancelled);
+
+  const q = ((document.getElementById("ord-q") && document.getElementById("ord-q").value) || "").toLowerCase();
+  const stSel = (document.getElementById("ord-status") && document.getElementById("ord-status").value) || "all";
+  const mode = ordFilterMode || stSel;
+  const from = (document.getElementById("ord-from") && document.getElementById("ord-from").value) || "";
+  const to = (document.getElementById("ord-to") && document.getElementById("ord-to").value) || "";
+
+  let list = all.filter(o => {
+    const st = (o.status || "pending").toLowerCase();
+    if (mode === "pending" && st !== "pending") return false;
+    if (mode === "approved" && st !== "approved") return false;
+    if (mode === "completed" && st !== "completed") return false;
+    if (mode === "cancelled" && st !== "cancelled") return false;
+    // pending always visible when mode is all — already included
+    const d = o.date || (o.ts ? new Date(o.ts).toISOString().slice(0, 10) : "");
+    if (from && d && d < from) return false;
+    if (to && d && d > to) return false;
+    if (q) {
+      const hay = [o.refNo, o.storeName, o.customerName, o.createdByName, o.status].join(" ").toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  }).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+  const tb = document.getElementById("ord-tbody");
+  const empty = document.getElementById("ord-empty");
+  if (!tb) return;
+  if (!list.length) {
+    tb.innerHTML = "";
+    if (empty) empty.classList.remove("hidden");
+    return;
+  }
+  if (empty) empty.classList.add("hidden");
+  tb.innerHTML = list.map(o => {
+    const st = (o.status || "pending").toLowerCase();
+    const badge = st === "completed" ? "st-completed" : st === "approved" ? "st-approved" : st === "cancelled" ? "st-cancelled" : "st-pending";
+    const label = (o.status || "PENDING").toUpperCase();
+    const cust = o.storeName || o.customerName || "—";
+    const deliv = o.deliveryDate || o.date || "—";
+    const pay = o.payment || o.paymentMethod || "—";
+    const by = o.createdByName || o.createdBy || "—";
+    const amt = money(o.total || o.netAmount || 0);
+    return '<tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" data-ov="' + o.id + '">'
+      + '<td class="px-3 py-2.5 font-bold text-sky-700">' + (o.refNo || "—") + '</td>'
+      + '<td class="px-3 py-2.5 text-slate-600">' + (o.date || "—") + '</td>'
+      + '<td class="px-3 py-2.5 font-semibold text-slate-800">' + cust + '</td>'
+      + '<td class="px-3 py-2.5 text-slate-500">' + pay + '</td>'
+      + '<td class="px-3 py-2.5 text-slate-600">' + deliv + '</td>'
+      + '<td class="px-3 py-2.5 text-right font-bold text-slate-900">' + amt + '</td>'
+      + '<td class="px-3 py-2.5"><span class="st-badge ' + badge + '">' + label + '</span></td>'
+      + '<td class="px-3 py-2.5 text-slate-600">' + by + '</td>'
+      + '<td class="px-3 py-2.5 text-slate-400"><i class="fa-solid fa-chevron-right text-xs"></i></td>'
+      + '</tr>';
+  }).join("");
+  tb.querySelectorAll("[data-ov]").forEach(row => {
+    row.onclick = () => openOrdView(row.getAttribute("data-ov"));
+  });
+}
+document.querySelectorAll(".ord-stat").forEach(btn => {
   btn.onclick = function () {
-    document.querySelectorAll(".ord-filter").forEach(b => b.classList.remove("on"));
+    document.querySelectorAll(".ord-stat").forEach(b => b.classList.remove("on"));
     btn.classList.add("on");
     ordFilterMode = btn.getAttribute("data-of") || "all";
+    const sel = document.getElementById("ord-status");
+    if (sel) sel.value = ordFilterMode === "all" ? "all" : ordFilterMode;
     renderCashierOrders();
   };
 });
-function renderCashierOrders() {
-  const dayEl = document.getElementById("ord-date");
-  const day = (dayEl && dayEl.value) || today();
-  const list = Object.values(saleOrders).filter(o => {
-    const st = o.status || "pending";
-    if (ordFilterMode === "pending") return st !== "completed";
-    if (ordFilterMode === "completed") return st === "completed";
-    return true; // all
-  }).sort((a, b) => (b.ts || 0) - (a.ts || 0));
-  const el = document.getElementById("ord-list");
+["ord-q", "ord-status", "ord-from", "ord-to"].forEach(id => {
+  const el = document.getElementById(id);
   if (!el) return;
-  if (!list.length) {
-    el.innerHTML = '<div class="text-center text-slate-400 py-10 text-sm">No orders</div>';
-    return;
-  }
-  el.innerHTML = '<div class="ord-slim">' + list.map(o => {
-    const done = o.status === "completed";
-    const cust = (o.customerName || o.storeName || "—");
-    return '<div class="ord-chip' + (done ? " done" : "") + '" data-ov="' + o.id + '" title="View order">'
-      + '<span class="ord-ref">' + (o.refNo || "—") + '</span>'
-      + '<span class="ord-cust">' + cust + '</span>'
-      + '<span class="ord-st ' + (done ? "d" : "p") + '">' + (done ? "Done" : "Pend") + '</span>'
-      + '</div>';
-  }).join("") + '</div>';
-  el.querySelectorAll("[data-ov]").forEach(b => b.onclick = () => openOrdView(b.getAttribute("data-ov")));
-}
-const ordDateEl = document.getElementById("ord-date");
-if (ordDateEl) ordDateEl.onchange = renderCashierOrders;
+  el.oninput = renderCashierOrders;
+  el.onchange = renderCashierOrders;
+});
+const ordReset = document.getElementById("ord-reset");
+if (ordReset) ordReset.onclick = function () {
+  ordFilterMode = "all";
+  document.querySelectorAll(".ord-stat").forEach(b => b.classList.remove("on"));
+  const all = document.querySelector('.ord-stat[data-of="all"]');
+  if (all) all.classList.add("on");
+  ["ord-q", "ord-from", "ord-to"].forEach(id => { const e = document.getElementById(id); if (e) e.value = ""; });
+  const sel = document.getElementById("ord-status");
+  if (sel) sel.value = "all";
+  renderCashierOrders();
+};
 
 let viewOrdId = null;
 function openOrdView(id) {
