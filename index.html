@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   :root{
     --bg:#f4f6f9; --card:#ffffff; --line:#e2e8f0; --text:#0f172a; --muted:#64748b;
@@ -2378,7 +2379,66 @@ document.getElementById("pend-close").onclick = () => document.getElementById("m
 })();
 
 
-// ========== SAVE BILL AS IMAGE (download + clipboard for WhatsApp Ctrl+V) ==========
+
+// ========== SAVE BILL AS IMAGE (same layout as print) ==========
+function buildPrintBillHtml(bill) {
+  const paid = Number(bill.paid || 0);
+  const total = Number(bill.grandTotal || 0);
+  const exchange = Math.max(0, paid - total);
+  const baqaya = Number(bill.balance || 0);
+  const showCust = bill.showCustomerDetails !== false && (bill.customerName || bill.customerPhone || bill.customerAddress);
+  const itemsHtml = (bill.items || []).map((it, i) =>
+    '<tr>'
+    + '<td style="padding:6px 4px;border:1px solid #222;text-align:center">' + (i + 1) + '</td>'
+    + '<td style="padding:6px 6px;border:1px solid #222">' + (it.name || "")
+    + '<div style="font-size:10px;color:#444">' + (it.category || "") + (it.code ? ((it.category ? " · " : "") + it.code) : "") + '</div></td>'
+    + '<td style="padding:6px;border:1px solid #222;text-align:center">' + it.qty + '</td>'
+    + '<td style="padding:6px;border:1px solid #222;text-align:right">' + money(it.rate) + '</td>'
+    + '<td style="padding:6px;border:1px solid #222;text-align:right">' + money(it.amount) + '</td></tr>'
+  ).join("");
+  return ''
+    + '<div id="bill-capture-inner" style="font-family:Arial,Tahoma,sans-serif;width:400px;margin:0;padding:12px 14px;color:#000;font-size:13px;line-height:1.4;box-sizing:border-box;background:#fff">'
+    + '<div style="text-align:center;padding-bottom:8px;margin-bottom:8px;border-bottom:2px solid #111">'
+    + '<div style="font-size:22px;font-weight:900;letter-spacing:1px">WAQAR TRADER</div>'
+    + '<div style="font-size:14px;font-weight:900;letter-spacing:3px;margin-top:2px">DAULTALA</div>'
+    + ((bill.shopAddress || (typeof shop!=="undefined"&&shop.address) || bill.shopPhone || (typeof shop!=="undefined"&&shop.phone))
+      ? ('<div style="font-size:11px;color:#333;margin-top:3px">' + (bill.shopAddress || (shop&&shop.address) || "") + (bill.shopPhone || (shop&&shop.phone) ? (" | " + (bill.shopPhone || shop.phone)) : "") + '</div>')
+      : '')
+    + '<div style="font-size:13px;font-weight:800;margin-top:5px;letter-spacing:2px">SALE BILL</div>'
+    + '</div>'
+    + '<table style="width:100%;font-size:12px;margin-bottom:8px;border-collapse:collapse">'
+    + '<tr><td style="padding:2px 0"><b>Bill No:</b> ' + (bill.billNo || "") + '</td>'
+    + '<td style="padding:2px 0;text-align:right"><b>Date:</b> ' + new Date(bill.ts || Date.now()).toLocaleString() + '</td></tr></table>'
+    + (showCust
+      ? ('<div style="padding:2px 0 8px;font-size:12px">'
+         + '<b>Customer:</b> ' + (bill.customerName || "Local Customer")
+         + (bill.customerPhone ? (' &nbsp;|&nbsp; <b>Phone:</b> ' + bill.customerPhone) : '')
+         + (bill.customerAddress ? ('<br><b>Address:</b> ' + bill.customerAddress) : '')
+         + '</div>')
+      : '<div style="padding:2px 0 8px;font-size:12px"><b>Customer:</b> Local Customer</div>')
+    + '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    + '<thead><tr style="background:#f0f0f0">'
+    + '<th style="padding:6px 4px;border:1px solid #222;width:28px">#</th>'
+    + '<th style="padding:6px;border:1px solid #222;text-align:left">Item / Category</th>'
+    + '<th style="padding:6px;border:1px solid #222;width:44px">Qty</th>'
+    + '<th style="padding:6px;border:1px solid #222;width:70px;text-align:right">Rate</th>'
+    + '<th style="padding:6px;border:1px solid #222;width:80px;text-align:right">Amount</th></tr></thead>'
+    + '<tbody>' + itemsHtml + '</tbody></table>'
+    + '<div style="border:1.5px solid #111;margin-top:10px;padding:10px 12px;font-size:13px">'
+    + '<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>Subtotal</span><span>' + money(bill.subtotal) + '</span></div>'
+    + (Number(bill.billDiscount) > 0
+      ? '<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>Discount ' + bill.billDiscount + '%</span><span>-' + money((bill.subtotal || 0) * bill.billDiscount / 100) + '</span></div>' : '')
+    + '<div style="display:flex;justify-content:space-between;font-weight:900;font-size:16px;padding:6px 0 2px;border-top:2px solid #111;margin-top:4px">'
+    + '<span>Total Bill</span><span>' + money(bill.grandTotal) + '</span></div>'
+    + '<div style="border-top:1px solid #111;margin:6px 0"></div>'
+    + '<div style="display:flex;justify-content:space-between"><span>Paid (' + (bill.paymentMethod || "cash") + ')</span><span>' + money(paid) + '</span></div>'
+    + '<div style="display:flex;justify-content:space-between;font-weight:700;margin-top:3px"><span>Exchange / باقی</span><span>' + money(exchange) + '</span></div>'
+    + (baqaya > 0 ? '<div style="display:flex;justify-content:space-between;margin-top:3px"><span>Udhaar / باقایا</span><span>' + money(baqaya) + '</span></div>' : '')
+    + '</div>'
+    + '<div style="margin-top:10px;text-align:center;font-size:11px;color:#444">Thank you · WAQAR TRADER DAULTALA</div>'
+    + '</div>';
+}
+
 function openBillImageShare(bill) {
   if (!bill) return;
   window._imgBill = bill;
@@ -2386,97 +2446,83 @@ function openBillImageShare(bill) {
   if (!modal) return;
   document.getElementById("bi-no").textContent = bill.billNo || "—";
   const prev = document.getElementById("bi-preview");
-  if (prev) prev.innerHTML = buildBillHtmlPreview(bill);
-  modal.classList.add("on");
-  // prepare canvas async
-  setTimeout(function () { renderBillToCanvas(bill); }, 50);
-}
-function buildBillHtmlPreview(bill) {
-  let h = "<b>WAQAR TRADER · DAULTALA</b><br>Bill " + (bill.billNo || "") + " · " + (bill.date || "") + "<br>";
-  if (bill.customerName) h += bill.customerName + "<br>";
-  h += "<hr>";
-  (bill.items || []).forEach(function (it, i) {
-    h += (i + 1) + ". " + (it.name || "") + " x" + it.qty + " = " + money(it.amount || it.rate * it.qty) + "<br>";
-  });
-  h += "<hr><b>Total: " + money(bill.grandTotal) + "</b>";
-  return h;
-}
-function renderBillToCanvas(bill) {
-  const c = document.getElementById("bi-canvas");
-  if (!c) return null;
-  const W = 420, pad = 16, lineH = 18;
-  const items = bill.items || [];
-  const H = pad * 2 + 120 + items.length * lineH + 60;
-  c.width = W;
-  c.height = H;
-  const ctx = c.getContext("2d");
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 18px Arial";
-  ctx.fillText("WAQAR TRADER", pad, pad + 18);
-  ctx.font = "bold 12px Arial";
-  ctx.fillText("DAULTALA", pad, pad + 36);
-  ctx.font = "12px Arial";
-  ctx.fillText("Bill: " + (bill.billNo || "") + "  |  " + (bill.date || ""), pad, pad + 56);
-  if (bill.customerName) ctx.fillText("Customer: " + bill.customerName, pad, pad + 74);
-  ctx.strokeStyle = "#cbd5e1";
-  ctx.beginPath(); ctx.moveTo(pad, pad + 84); ctx.lineTo(W - pad, pad + 84); ctx.stroke();
-  let y = pad + 104;
-  ctx.font = "12px Arial";
-  items.forEach(function (it, i) {
-    const line = (i + 1) + ". " + (it.name || "").slice(0, 28) + "  x" + it.qty + "  " + money(it.amount || it.rate * it.qty);
-    ctx.fillText(line, pad, y);
-    y += lineH;
-  });
-  ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(W - pad, y); ctx.stroke();
-  y += 22;
-  ctx.font = "bold 14px Arial";
-  ctx.fillText("TOTAL: " + money(bill.grandTotal), pad, y);
-  if (bill.paid != null) {
-    y += 18;
-    ctx.font = "12px Arial";
-    ctx.fillText("Paid: " + money(bill.paid) + (bill.balance ? "  Balance: " + money(bill.balance) : ""), pad, y);
+  if (prev) {
+    prev.innerHTML = buildPrintBillHtml(bill);
+    prev.style.maxHeight = "220px";
+    prev.style.overflow = "auto";
+    prev.style.background = "#fff";
   }
-  return c;
+  modal.classList.add("on");
+  window._billImgBlob = null;
+  captureBillPrintImage(bill).then(function (blob) {
+    window._billImgBlob = blob;
+  }).catch(function (e) { console.error(e); });
 }
-function canvasToBlob(canvas) {
-  return new Promise(function (resolve) {
-    canvas.toBlob(function (b) { resolve(b); }, "image/png");
-  });
+
+async function captureBillPrintImage(bill) {
+  const host = document.createElement("div");
+  host.style.cssText = "position:fixed;left:-9999px;top:0;width:400px;background:#fff;z-index:-1;";
+  host.innerHTML = buildPrintBillHtml(bill);
+  document.body.appendChild(host);
+  const target = host.firstElementChild || host;
+  try {
+    if (typeof html2canvas !== "function") {
+      throw new Error("html2canvas missing");
+    }
+    const canvas = await html2canvas(target, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      useCORS: true,
+      logging: false
+    });
+    const blob = await new Promise(function (resolve) {
+      canvas.toBlob(function (b) { resolve(b); }, "image/png");
+    });
+    return blob;
+  } finally {
+    host.remove();
+  }
 }
+
 async function saveBillImageDownload() {
   const bill = window._imgBill;
   if (!bill) return;
-  const c = renderBillToCanvas(bill) || document.getElementById("bi-canvas");
-  const blob = await canvasToBlob(c);
-  if (!blob) { showError("Image ban nahi saki"); return; }
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "Bill-" + (bill.billNo || "WT") + ".png";
-  a.click();
-  URL.revokeObjectURL(a.href);
-  toast("Image downloaded");
+  try {
+    toast("Preparing image…");
+    const blob = window._billImgBlob || await captureBillPrintImage(bill);
+    if (!blob) { showError("Image ban nahi saki"); return; }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "Bill-" + (bill.billNo || "WT") + ".png";
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast("Bill image saved (print layout)");
+  } catch (e) {
+    console.error(e);
+    showError("Save failed");
+  }
 }
+
 async function copyBillImageClipboard() {
   const bill = window._imgBill;
   if (!bill) return;
-  const c = renderBillToCanvas(bill) || document.getElementById("bi-canvas");
   try {
-    const blob = await canvasToBlob(c);
+    toast("Copying…");
+    const blob = window._billImgBlob || await captureBillPrintImage(bill);
+    if (!blob) { showError("Image ban nahi saki"); return; }
     if (navigator.clipboard && window.ClipboardItem) {
       await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
       toast("Copied — WhatsApp mein Ctrl+V");
     } else {
-      // fallback download
       await saveBillImageDownload();
-      toast("Clipboard not supported — image downloaded");
+      toast("Clipboard nahi — image download ho gayi");
     }
   } catch (e) {
     console.error(e);
-    showError("Copy fail — Save Image use karein (HTTPS chahiye)");
+    showError("Copy fail — Save Image use karein (HTTPS)");
   }
 }
+
 (function () {
   const s = document.getElementById("bi-save");
   const c = document.getElementById("bi-copy");
@@ -2485,6 +2531,7 @@ async function copyBillImageClipboard() {
   if (c) c.onclick = function () { copyBillImageClipboard(); };
   if (x) x.onclick = function () { document.getElementById("md-bill-img").classList.remove("on"); };
 })();
+
 
 // ========== AGENT REPLY POPUP (stays until user reads) ==========
 let seenAgentMsgKeys = JSON.parse(localStorage.getItem("wt_seen_agent_msgs") || "[]");
@@ -2496,7 +2543,7 @@ function showAgentPopup(name, avatar, text, count) {
   const pop = document.getElementById("agent-pop");
   if (!pop) return;
   document.getElementById("agent-pop-name").textContent = name || "Agent";
-  document.getElementById("agent-pop-msg").textContent = String(text || "New reply").slice(0, 80);
+  document.getElementById("agent-pop-msg").textContent = String(text || "New Message").slice(0, 80);
   document.getElementById("agent-pop-qty").textContent = count > 1 ? (count + " new messages") : "1 new message";
   const img = document.getElementById("agent-pop-img");
   if (img) img.src = avatar || ("https://ui-avatars.com/api/?name=" + encodeURIComponent(name || "A") + "&background=0891b2&color=fff&size=96");
@@ -2545,33 +2592,38 @@ function markAgentMessagesRead() {
 
 function checkAgentReplies(chatsMap) {
   if (!session) return;
-  let newKeys = [];
   let lastDev = null;
+  let fresh = [];
   Object.values(chatsMap || {}).forEach(function (c) {
     if (c.userId !== session.id && c.userId !== (session.name || session.username)) return;
     const msgs = Array.isArray(c.messages) ? c.messages : (c.messages ? Object.values(c.messages) : []);
     msgs.forEach(function (m) {
       if (!m) return;
-      if (m.from === "user" || m.role === "user" || m.sender === "user") return;
+      // ONLY developer / agent messages — never user
+      const isDev = m.from === "developer" || m.role === "developer" || m.sender === "developer" || m.from === "agent";
+      if (!isDev) return;
       const k = agentMsgKey(c.id, m);
       if (seenAgentMsgKeys.indexOf(k) >= 0) return;
       if (pendingAgentUnread.indexOf(k) < 0) pendingAgentUnread.push(k);
-      newKeys.push(k);
+      fresh.push(k);
       lastDev = {
         name: m.senderName || m.name || c.agentName || (typeof devProfile !== "undefined" && devProfile.name) || "Agent",
         avatar: m.senderAvatar || m.avatar || c.agentAvatar || (typeof devProfile !== "undefined" && devProfile.avatar) || window._portalSupportAvatar || "",
-        text: m.text || m.message || ""
+        text: m.text || m.message || "New Message"
       };
     });
   });
   localStorage.setItem("wt_agent_unread", JSON.stringify(pendingAgentUnread.slice(-100)));
   const count = pendingAgentUnread.length;
+  // Show popup only when there is at least one unread DEVELOPER message
   if (count > 0 && lastDev) {
-    showAgentPopup(lastDev.name, lastDev.avatar, lastDev.text, count);
-  } else if (count > 0) {
-    showAgentPopup("Agent", "", count + " unread replies", count);
+    showAgentPopup(lastDev.name, lastDev.avatar, lastDev.text || "New Message", count);
+  } else if (count === 0) {
+    const pop = document.getElementById("agent-pop");
+    if (pop) { pop.classList.remove("on"); pop.classList.remove("still"); }
   }
 }
+
 // When user opens support chat room — mark read
 
 // ========== USER REPORTS ==========
