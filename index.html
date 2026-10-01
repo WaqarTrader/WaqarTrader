@@ -356,7 +356,7 @@
                   </div>
                 </div>
                 <div class="flex justify-between"><span class="text-slate-500">Balance / Udhaar</span><span id="t-bal" class="font-bold text-red-600">0.00</span></div>
-                <div class="flex justify-between"><span class="text-slate-500">Exchange (باقی)</span><span id="t-exchange" class="font-bold text-emerald-700">0.00</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">Exchange / Change</span><span id="t-exchange" class="font-bold text-emerald-700">0.00</span></div>
                 <div>
                   <div class="label">Payment</div>
                   <select id="t-pay">
@@ -423,8 +423,8 @@
         <h2 class="text-lg font-black mb-3">Daily Summary</h2>
         <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4" id="sum-cards"></div>
         <div class="card p-4 max-w-md">
-          <div class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Session timeout (idle logout)</div>
-          <p class="text-xs text-slate-500 mb-3">Agar aap kam chhod dein to itne minutes baad auto logout ho jayega. Kam karte rahein to timer reset hota rehta hai.</p>
+          <div class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Session Timeout (Idle Logout)</div>
+          <p class="text-xs text-slate-500 mb-3">If you leave the app idle, you will be logged out automatically after this many minutes. Any activity resets the timer.</p>
           <div class="flex items-end gap-2">
             <div class="flex-1">
               <div class="label">Minutes</div>
@@ -549,20 +549,54 @@
 
       
       <section id="pg-reports" class="pg hidden">
-        <h2 class="text-lg font-black mb-1">Reports</h2>
-        <p class="text-xs text-slate-500 mb-3">Access controlled by developer</p>
-        <div class="grid sm:grid-cols-2 gap-3 mb-4" id="user-rpt-menu">
-          <button type="button" class="card p-4 text-left hover:border-amber-300 ur-rpt" data-ur="daily"><div class="font-bold">Daily Sales</div><div class="text-xs text-slate-500 mt-1">Today / selected date total</div></button>
-          <button type="button" class="card p-4 text-left hover:border-amber-300 ur-rpt" data-ur="summary"><div class="font-bold">Bill Summary</div><div class="text-xs text-slate-500 mt-1">Bills count & totals</div></button>
-          <button type="button" class="card p-4 text-left hover:border-amber-300 ur-rpt" data-ur="orders"><div class="font-bold">Sales Orders</div><div class="text-xs text-slate-500 mt-1">Pending / completed counts</div></button>
-          <button type="button" class="card p-4 text-left hover:border-amber-300 ur-rpt" data-ur="customers"><div class="font-bold">Customers</div><div class="text-xs text-slate-500 mt-1">Customer list & balances</div></button>
-        </div>
-        <div class="card p-4">
-          <div class="flex flex-wrap gap-2 mb-3">
-            <input type="date" id="ur-date" class="text-sm max-w-[150px]">
-            <button type="button" id="ur-run" class="btn btn-primary text-sm">Run Report</button>
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <div>
+            <h2 class="text-lg font-black">Reports</h2>
+            <p class="text-[11px] text-slate-500">Sale reports · configure filters · Generate</p>
           </div>
-          <div id="ur-out" class="text-sm text-slate-700">Select a report above</div>
+          <div class="text-[10px] font-bold text-cyan-700 tracking-wide">ESHAAL SOFTWARE HUB</div>
+        </div>
+        <div class="flex flex-col lg:flex-row gap-3 min-h-[420px]">
+          <!-- Categories -->
+          <div class="lg:w-52 shrink-0 card p-2 space-y-0.5" id="user-rpt-menu">
+            <div class="text-[10px] font-bold uppercase text-slate-400 px-2 py-1">Sale Reports</div>
+            <button type="button" class="ur-rpt nav-item on w-full text-left" data-ur="daily"><i class="fa-solid fa-calendar-day w-4 text-amber-600"></i><span class="nav-label">Daily Sale Summary</span></button>
+            <button type="button" class="ur-rpt nav-item w-full text-left" data-ur="party"><i class="fa-solid fa-users w-4 text-emerald-600"></i><span class="nav-label">Partywise Sale</span></button>
+            <button type="button" class="ur-rpt nav-item w-full text-left" data-ur="invoice"><i class="fa-solid fa-file-invoice w-4 text-sky-600"></i><span class="nav-label">Sale Date & Invoice</span></button>
+            <button type="button" class="ur-rpt nav-item w-full text-left" data-ur="item"><i class="fa-solid fa-box w-4 text-violet-600"></i><span class="nav-label">Item Sale During Period</span></button>
+            <button type="button" class="ur-rpt nav-item w-full text-left" data-ur="monthly"><i class="fa-solid fa-chart-line w-4 text-rose-600"></i><span class="nav-label">Monthly Sale</span></button>
+            <div class="text-[10px] font-bold uppercase text-slate-400 px-2 py-1 mt-2">Other</div>
+            <button type="button" class="ur-rpt nav-item w-full text-left" data-ur="orders"><i class="fa-solid fa-clipboard-list w-4 text-orange-600"></i><span class="nav-label">Sales Orders</span></button>
+            <button type="button" class="ur-rpt nav-item w-full text-left" data-ur="customers"><i class="fa-solid fa-address-book w-4 text-teal-600"></i><span class="nav-label">Customers</span></button>
+          </div>
+          <!-- Filters + result -->
+          <div class="flex-1 min-w-0 space-y-3">
+            <div class="card p-3">
+              <div class="text-[10px] font-bold uppercase text-slate-400 mb-2">Basic Filters</div>
+              <div class="flex flex-wrap gap-2 items-end">
+                <div>
+                  <div class="label">Date From</div>
+                  <input type="date" id="ur-from" class="text-sm max-w-[150px]">
+                </div>
+                <div>
+                  <div class="label">Date To</div>
+                  <input type="date" id="ur-to" class="text-sm max-w-[150px]">
+                </div>
+                <button type="button" id="ur-run" class="btn btn-primary text-sm"><i class="fa-solid fa-play"></i> Generate Report</button>
+                <button type="button" id="ur-reset" class="btn btn-ghost text-sm">Reset</button>
+                <button type="button" id="ur-print" class="btn btn-ghost text-sm"><i class="fa-solid fa-print"></i> Print</button>
+                <button type="button" id="ur-pdf" class="btn btn-ghost text-sm"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+              </div>
+              <div class="text-[11px] text-slate-500 mt-2" id="ur-title">Select a report category, set dates, then Generate.</div>
+            </div>
+            <div class="card p-0 overflow-hidden">
+              <div class="px-3 py-2 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <span class="text-xs font-bold text-slate-700" id="ur-result-label">Report result</span>
+                <span class="text-[10px] text-cyan-700 font-bold">ESHAAL SOFTWARE HUB</span>
+              </div>
+              <div id="ur-out" class="p-3 text-sm text-slate-700 overflow-x-auto max-h-[480px]">Select a report and click Generate Report</div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1954,7 +1988,7 @@ function printBill(bill) {
     + '<span>Total Bill</span><span>' + money(bill.grandTotal) + '</span></div>'
     + '<div style="border-top:1px solid #111;margin:6px 0"></div>'
     + '<div style="display:flex;justify-content:space-between"><span>Paid (' + (bill.paymentMethod || "cash") + ')</span><span>' + money(paid) + '</span></div>'
-    + '<div style="display:flex;justify-content:space-between;font-weight:700;margin-top:3px"><span>Exchange / باقی</span><span>' + money(exchange) + '</span></div>'
+    + '<div style="display:flex;justify-content:space-between;font-weight:700;margin-top:3px"><span>Exchange / Change</span><span>' + money(exchange) + '</span></div>'
     + (baqaya > 0 ? '<div style="display:flex;justify-content:space-between;margin-top:3px"><span>Udhaar / باقایا</span><span>' + money(baqaya) + '</span></div>' : '')
     + '</div>'
     + '<div style="margin-top:12px;padding:9px 10px;border:1.5px dashed #333;text-align:center;'
@@ -2432,7 +2466,7 @@ function buildPrintBillHtml(bill) {
     + '<span>Total Bill</span><span>' + money(bill.grandTotal) + '</span></div>'
     + '<div style="border-top:1px solid #111;margin:6px 0"></div>'
     + '<div style="display:flex;justify-content:space-between"><span>Paid (' + (bill.paymentMethod || "cash") + ')</span><span>' + money(paid) + '</span></div>'
-    + '<div style="display:flex;justify-content:space-between;font-weight:700;margin-top:3px"><span>Exchange / باقی</span><span>' + money(exchange) + '</span></div>'
+    + '<div style="display:flex;justify-content:space-between;font-weight:700;margin-top:3px"><span>Exchange / Change</span><span>' + money(exchange) + '</span></div>'
     + (baqaya > 0 ? '<div style="display:flex;justify-content:space-between;margin-top:3px"><span>Udhaar / باقایا</span><span>' + money(baqaya) + '</span></div>' : '')
     + '</div>'
     + '<div style="margin-top:10px;text-align:center;font-size:11px;color:#444">Thank you · WAQAR TRADER DAULTALA</div>'
@@ -2626,48 +2660,312 @@ function checkAgentReplies(chatsMap) {
 
 // When user opens support chat room — mark read
 
+
 // ========== USER REPORTS ==========
 let userRptType = "daily";
+const RPT_TITLES = {
+  daily: "Daily Sale Summary",
+  party: "Partywise Sale",
+  invoice: "Sale Date and Invoice wise",
+  item: "Item Sale During Period",
+  monthly: "Monthly Sale",
+  orders: "Sales Orders Summary",
+  customers: "Customer Balances"
+};
+
+function rptDateInRange(d, from, to) {
+  if (!d) return false;
+  if (from && d < from) return false;
+  if (to && d > to) return false;
+  return true;
+}
+
+function billsInRange(from, to) {
+  return Object.values(bills).filter(b => {
+    if (b.cancelled) return false;
+    const d = b.date || (b.ts ? new Date(b.ts).toISOString().slice(0, 10) : "");
+    return rptDateInRange(d, from, to);
+  });
+}
+
+function buildReportData(type, from, to) {
+  const list = billsInRange(from, to);
+  if (type === "daily" || type === "summary") {
+    let count = 0, total = 0, paid = 0, credit = 0;
+    const rows = [];
+    list.forEach(b => {
+      count++;
+      total += Number(b.grandTotal || 0);
+      paid += Number(b.paid || 0);
+      credit += Number(b.balance || 0);
+      rows.push({
+        billNo: b.billNo || "—",
+        date: b.date || "",
+        customer: b.customerName || "Walk-in",
+        total: Number(b.grandTotal || 0),
+        paid: Number(b.paid || 0),
+        balance: Number(b.balance || 0),
+        method: b.paymentMethod || "cash"
+      });
+    });
+    return { kind: "daily", count, total, paid, credit, rows };
+  }
+  if (type === "party") {
+    const map = {};
+    list.forEach(b => {
+      const name = (b.customerName || "Walk-in Customer").toUpperCase();
+      if (!map[name]) map[name] = { name, sale: 0, discount: 0, bills: 0 };
+      map[name].sale += Number(b.grandTotal || 0);
+      map[name].discount += Number(b.billDiscount || 0) > 0
+        ? (Number(b.subtotal || 0) * Number(b.billDiscount || 0) / 100) : 0;
+      map[name].bills++;
+    });
+    const rows = Object.values(map).sort((a, b) => b.sale - a.sale);
+    return { kind: "party", rows, total: rows.reduce((s, r) => s + r.sale, 0) };
+  }
+  if (type === "invoice") {
+    const rows = list.map(b => ({
+      billNo: b.billNo || "—",
+      date: b.date || "",
+      customer: b.customerName || "Walk-in",
+      items: (b.items || []).length,
+      total: Number(b.grandTotal || 0),
+      paid: Number(b.paid || 0),
+      cashier: b.cashierName || ""
+    })).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+    return { kind: "invoice", rows, total: rows.reduce((s, r) => s + r.total, 0) };
+  }
+  if (type === "item") {
+    const map = {};
+    list.forEach(b => {
+      (b.items || []).forEach(it => {
+        const key = (it.name || it.code || "Item").toUpperCase();
+        if (!map[key]) map[key] = { name: it.name || key, qty: 0, amount: 0 };
+        map[key].qty += Number(it.qty || 0);
+        map[key].amount += Number(it.amount || (it.rate * it.qty) || 0);
+      });
+    });
+    const rows = Object.values(map).sort((a, b) => b.amount - a.amount);
+    return { kind: "item", rows, total: rows.reduce((s, r) => s + r.amount, 0) };
+  }
+  if (type === "monthly") {
+    const map = {};
+    list.forEach(b => {
+      const d = b.date || (b.ts ? new Date(b.ts).toISOString().slice(0, 10) : "");
+      const m = d ? d.slice(0, 7) : "—";
+      if (!map[m]) map[m] = { month: m, bills: 0, sale: 0 };
+      map[m].bills++;
+      map[m].sale += Number(b.grandTotal || 0);
+    });
+    const rows = Object.values(map).sort((a, b) => a.month.localeCompare(b.month));
+    return { kind: "monthly", rows, total: rows.reduce((s, r) => s + r.sale, 0) };
+  }
+  if (type === "orders") {
+    let pend = 0, comp = 0, tot = 0;
+    const rows = [];
+    Object.values(saleOrders).forEach(o => {
+      const d = o.date || (o.ts ? new Date(o.ts).toISOString().slice(0, 10) : "");
+      if (!rptDateInRange(d, from, to) && (from || to)) return;
+      tot++;
+      const st = (o.status || "pending").toLowerCase();
+      if (st === "completed") comp++; else pend++;
+      rows.push({
+        ref: o.refNo || "—",
+        date: d,
+        store: o.storeName || "",
+        customer: o.customerName || "",
+        status: st,
+        total: Number(o.grandTotal || o.total || 0)
+      });
+    });
+    return { kind: "orders", rows, pend, comp, tot };
+  }
+  if (type === "customers") {
+    const rows = Object.values(customers).map(c => ({
+      name: c.name || "—",
+      phone: c.phone || "",
+      balance: Number(c.balance || 0)
+    })).sort((a, b) => a.name.localeCompare(b.name));
+    return { kind: "customers", rows };
+  }
+  return { kind: "empty" };
+}
+
+function renderReportHtml(data, type, from, to) {
+  const title = RPT_TITLES[type] || "Report";
+  let head = '<div class="mb-2"><div class="font-black text-slate-900">' + title + '</div>'
+    + '<div class="text-[11px] text-slate-500">Period: ' + (from || "…") + ' → ' + (to || "…") + ' · ESHAAL SOFTWARE HUB</div></div>';
+  if (!data || data.kind === "empty") return head + '<div class="text-slate-400">No data</div>';
+
+  if (data.kind === "daily") {
+    head += '<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">'
+      + '<div class="card p-2"><div class="text-[10px] text-slate-400 font-bold">BILLS</div><div class="font-black text-lg">' + data.count + '</div></div>'
+      + '<div class="card p-2"><div class="text-[10px] text-slate-400 font-bold">SALE</div><div class="font-black text-lg text-amber-700">' + money(data.total) + '</div></div>'
+      + '<div class="card p-2"><div class="text-[10px] text-slate-400 font-bold">PAID</div><div class="font-black text-lg text-emerald-700">' + money(data.paid) + '</div></div>'
+      + '<div class="card p-2"><div class="text-[10px] text-slate-400 font-bold">CREDIT</div><div class="font-black text-lg text-rose-700">' + money(data.credit) + '</div></div></div>';
+    head += '<table class="w-full text-left"><thead><tr><th>Bill</th><th>Date</th><th>Customer</th><th class="text-right">Total</th><th class="text-right">Paid</th></tr></thead><tbody>';
+    data.rows.forEach(r => {
+      head += '<tr><td>' + r.billNo + '</td><td>' + r.date + '</td><td>' + r.customer + '</td><td class="text-right">' + money(r.total) + '</td><td class="text-right">' + money(r.paid) + '</td></tr>';
+    });
+    head += '</tbody></table>';
+    return head;
+  }
+  if (data.kind === "party") {
+    head += '<div class="text-xs mb-2 font-bold">Total Sale: ' + money(data.total) + '</div>';
+    head += '<table class="w-full text-left"><thead><tr><th>Party Name</th><th class="text-right">Sale</th><th class="text-right">Discount</th><th class="text-right">Bills</th></tr></thead><tbody>';
+    data.rows.forEach(r => {
+      head += '<tr><td class="font-semibold">' + r.name + '</td><td class="text-right">' + money(r.sale) + '</td><td class="text-right">' + money(r.discount) + '</td><td class="text-right">' + r.bills + '</td></tr>';
+    });
+    head += '</tbody></table>';
+    return head;
+  }
+  if (data.kind === "invoice") {
+    head += '<div class="text-xs mb-2 font-bold">Total: ' + money(data.total) + '</div>';
+    head += '<table class="w-full text-left"><thead><tr><th>Bill No</th><th>Date</th><th>Customer</th><th>Items</th><th class="text-right">Total</th><th class="text-right">Paid</th></tr></thead><tbody>';
+    data.rows.forEach(r => {
+      head += '<tr><td>' + r.billNo + '</td><td>' + r.date + '</td><td>' + r.customer + '</td><td>' + r.items + '</td><td class="text-right">' + money(r.total) + '</td><td class="text-right">' + money(r.paid) + '</td></tr>';
+    });
+    head += '</tbody></table>';
+    return head;
+  }
+  if (data.kind === "item") {
+    head += '<div class="text-xs mb-2 font-bold">Total Amount: ' + money(data.total) + '</div>';
+    head += '<table class="w-full text-left"><thead><tr><th>Item</th><th class="text-right">Qty</th><th class="text-right">Amount</th></tr></thead><tbody>';
+    data.rows.forEach(r => {
+      head += '<tr><td>' + r.name + '</td><td class="text-right">' + r.qty + '</td><td class="text-right">' + money(r.amount) + '</td></tr>';
+    });
+    head += '</tbody></table>';
+    return head;
+  }
+  if (data.kind === "monthly") {
+    head += '<table class="w-full text-left"><thead><tr><th>Month</th><th class="text-right">Bills</th><th class="text-right">Sale</th></tr></thead><tbody>';
+    data.rows.forEach(r => {
+      head += '<tr><td>' + r.month + '</td><td class="text-right">' + r.bills + '</td><td class="text-right">' + money(r.sale) + '</td></tr>';
+    });
+    head += '</tbody></table>';
+    return head;
+  }
+  if (data.kind === "orders") {
+    head += '<div class="text-xs mb-2">Total: ' + data.tot + ' · Pending: ' + data.pend + ' · Completed: ' + data.comp + '</div>';
+    head += '<table class="w-full text-left"><thead><tr><th>Ref</th><th>Date</th><th>Store</th><th>Customer</th><th>Status</th><th class="text-right">Total</th></tr></thead><tbody>';
+    data.rows.forEach(r => {
+      head += '<tr><td>' + r.ref + '</td><td>' + r.date + '</td><td>' + r.store + '</td><td>' + r.customer + '</td><td>' + r.status + '</td><td class="text-right">' + money(r.total) + '</td></tr>';
+    });
+    head += '</tbody></table>';
+    return head;
+  }
+  if (data.kind === "customers") {
+    head += '<table class="w-full text-left"><thead><tr><th>Customer</th><th>Phone</th><th class="text-right">Balance</th></tr></thead><tbody>';
+    data.rows.forEach(r => {
+      head += '<tr><td>' + r.name + '</td><td>' + r.phone + '</td><td class="text-right">' + money(r.balance) + '</td></tr>';
+    });
+    head += '</tbody></table>';
+    return head;
+  }
+  return head;
+}
+
+window._lastReportHtml = "";
+window._lastReportMeta = {};
+
+function runUserReport() {
+  const from = (document.getElementById("ur-from") && document.getElementById("ur-from").value) || "";
+  const to = (document.getElementById("ur-to") && document.getElementById("ur-to").value) || "";
+  const out = document.getElementById("ur-out");
+  if (!out) return;
+  const title = RPT_TITLES[userRptType] || "Report";
+  const tEl = document.getElementById("ur-title");
+  if (tEl) tEl.textContent = title + " — configure filters below, then Generate Report";
+  const lab = document.getElementById("ur-result-label");
+  if (lab) lab.textContent = title;
+  const data = buildReportData(userRptType, from, to);
+  const html = renderReportHtml(data, userRptType, from, to);
+  out.innerHTML = html;
+  window._lastReportHtml = html;
+  window._lastReportMeta = { title, from, to, type: userRptType };
+}
+
+function printUserReport() {
+  if (!window._lastReportHtml) { showError("Generate report first"); return; }
+  const m = window._lastReportMeta || {};
+  const root = document.getElementById("print-root");
+  const prevTitle = document.title;
+  document.title = " ";
+  root.innerHTML = '<div style="font-family:Arial,sans-serif;padding:16px;color:#000;font-size:12px">'
+    + '<div style="text-align:center;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px">'
+    + '<div style="font-size:18px;font-weight:900">WAQAR TRADER · DAULTALA</div>'
+    + '<div style="font-size:11px;letter-spacing:2px;margin-top:2px">ESHAAL SOFTWARE HUB</div>'
+    + '<div style="font-size:14px;font-weight:800;margin-top:6px">' + (m.title || "Report") + '</div>'
+    + '<div style="font-size:11px;color:#333">Period: ' + (m.from || "…") + ' to ' + (m.to || "…") + '</div>'
+    + '</div>'
+    + window._lastReportHtml
+    + '<div style="margin-top:16px;text-align:center;font-size:10px;color:#666">Generated by ESHAAL SOFTWARE HUB</div>'
+    + '</div>';
+  setTimeout(function () {
+    window.print();
+    document.title = prevTitle;
+  }, 100);
+}
+
+async function pdfUserReport() {
+  if (!window._lastReportHtml) { showError("Generate report first"); return; }
+  if (typeof html2canvas !== "function") { printUserReport(); return; }
+  const m = window._lastReportMeta || {};
+  const host = document.createElement("div");
+  host.style.cssText = "position:fixed;left:-9999px;top:0;width:800px;background:#fff;padding:20px;z-index:-1;";
+  host.innerHTML = '<div style="font-family:Arial,sans-serif;color:#000;font-size:12px">'
+    + '<div style="text-align:center;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px">'
+    + '<div style="font-size:18px;font-weight:900">WAQAR TRADER · DAULTALA</div>'
+    + '<div style="font-size:11px;letter-spacing:2px">ESHAAL SOFTWARE HUB</div>'
+    + '<div style="font-size:14px;font-weight:800;margin-top:6px">' + (m.title || "Report") + '</div>'
+    + '<div style="font-size:11px">Period: ' + (m.from || "…") + ' to ' + (m.to || "…") + '</div></div>'
+    + window._lastReportHtml
+    + '<div style="margin-top:12px;text-align:center;font-size:10px;color:#666">Generated by ESHAAL SOFTWARE HUB</div></div>';
+  document.body.appendChild(host);
+  try {
+    toast("Preparing PDF…");
+    const canvas = await html2canvas(host, { backgroundColor: "#ffffff", scale: 2, logging: false });
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = "Report-" + (m.type || "sale") + "-" + (m.from || "") + ".png";
+    a.click();
+    toast("Report image saved (open & print to PDF)");
+  } catch (e) {
+    console.error(e);
+    printUserReport();
+  } finally {
+    host.remove();
+  }
+}
+
 document.querySelectorAll(".ur-rpt").forEach(btn => {
   btn.onclick = function () {
     userRptType = btn.getAttribute("data-ur") || "daily";
-    document.querySelectorAll(".ur-rpt").forEach(b => b.classList.remove("border-amber-400"));
-    btn.classList.add("border-amber-400");
+    document.querySelectorAll(".ur-rpt").forEach(b => b.classList.remove("on"));
+    btn.classList.add("on");
+    const tEl = document.getElementById("ur-title");
+    if (tEl) tEl.textContent = (RPT_TITLES[userRptType] || "Report") + " — set dates, then Generate Report";
   };
 });
 (function () {
   const run = document.getElementById("ur-run");
-  if (!run) return;
-  run.onclick = function () {
-    const d = (document.getElementById("ur-date") && document.getElementById("ur-date").value) || today();
+  const rst = document.getElementById("ur-reset");
+  const pr = document.getElementById("ur-print");
+  const pdf = document.getElementById("ur-pdf");
+  if (run) run.onclick = runUserReport;
+  if (rst) rst.onclick = function () {
+    const f = document.getElementById("ur-from");
+    const t = document.getElementById("ur-to");
+    if (f) f.value = "";
+    if (t) t.value = "";
     const out = document.getElementById("ur-out");
-    if (!out) return;
-    if (userRptType === "daily" || userRptType === "summary") {
-      let count = 0, total = 0, paid = 0;
-      Object.values(bills).forEach(b => {
-        if (b.cancelled) return;
-        const bd = b.date || (b.ts ? new Date(b.ts).toISOString().slice(0, 10) : "");
-        if (bd !== d) return;
-        count++;
-        total += Number(b.grandTotal || 0);
-        paid += Number(b.paid || 0);
-      });
-      out.innerHTML = "<b>Date:</b> " + d + "<br><b>Bills:</b> " + count + "<br><b>Sales:</b> " + money(total) + "<br><b>Paid:</b> " + money(paid);
-    } else if (userRptType === "orders") {
-      let pend = 0, comp = 0, tot = 0;
-      Object.values(saleOrders).forEach(o => {
-        tot++;
-        if ((o.status || "pending") === "completed") comp++; else pend++;
-      });
-      out.innerHTML = "<b>Total orders:</b> " + tot + "<br><b>Pending:</b> " + pend + "<br><b>Completed:</b> " + comp;
-    } else if (userRptType === "customers") {
-      const list = Object.values(customers);
-      out.innerHTML = "<b>Customers:</b> " + list.length + "<br>" + list.slice(0, 30).map(c =>
-        (c.name || "—") + " · " + money(c.balance || 0)
-      ).join("<br>") + (list.length > 30 ? "<br>…" : "");
-    }
+    if (out) out.innerHTML = "Select a report and click Generate Report";
+    window._lastReportHtml = "";
   };
+  if (pr) pr.onclick = printUserReport;
+  if (pdf) pdf.onclick = pdfUserReport;
 })();
+
 
 
 // ========== COMPLAINTS / SUPPORT ==========
