@@ -286,7 +286,7 @@
       </button>
       <button class="nav-item on" data-p="sale"><i class="fa-solid fa-cart-shopping w-5 text-amber-600"></i><span class="nav-label">New Sale</span></button>
       <button class="nav-item" data-p="bills"><i class="fa-solid fa-file-lines w-5 text-sky-600"></i><span class="nav-label">Bills</span></button>
-      <button class="nav-item" data-p="returns"><i class="fa-solid fa-rotate-left w-5 text-rose-600"></i><span class="nav-label">Sale Return</span></button>
+      <button class="nav-item" data-p="returns" style="display:none"><i class="fa-solid fa-rotate-left w-5 text-rose-600"></i><span class="nav-label">Sale Return</span></button>
       <button class="nav-item" data-p="customers"><i class="fa-solid fa-users w-5 text-emerald-600"></i><span class="nav-label">Customers</span></button>
       <button class="nav-item" data-p="products"><i class="fa-solid fa-box w-5 text-violet-600"></i><span class="nav-label">Products</span></button>
       <button class="nav-item" data-p="purchase" style="display:none"><i class="fa-solid fa-truck w-5 text-lime-600"></i><span class="nav-label">Purchasing</span></button>
@@ -783,6 +783,16 @@
   </div>
 </div></div>
 
+
+<div id="sc-maint" class="fixed inset-0 z-[200] hidden items-center justify-center p-6" style="background:rgba(15,23,42,.92)">
+  <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-xl">
+    <div class="text-3xl mb-2">🔧</div>
+    <div class="font-black text-lg text-slate-900 mb-2">Maintenance</div>
+    <p id="maint-msg" class="text-sm text-slate-600 mb-4">System is under maintenance. Please try again later.</p>
+    <div class="text-[10px] font-bold text-cyan-700 tracking-wide">ESHAAL SOFTWARE HUB</div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <!-- CENTER ERROR POPUP -->
@@ -1063,8 +1073,11 @@ function stopIdleWatch() {
 
 // Login portal branding (Developer can change via portal_settings)
 // portal branding available immediately for login
+const APP_CLIENT_VERSION = "3.0";
+window._portalCfg = {};
 function applyPortalBranding(cfg) {
   cfg = cfg || {};
+  window._portalCfg = cfg;
   if (cfg.supportAvatar) window._portalSupportAvatar = cfg.supportAvatar;
   try { applyDevAvatar(); } catch (e) {}
   const sc = document.getElementById("sc-login");
@@ -1083,6 +1096,31 @@ function applyPortalBranding(cfg) {
   } else {
     if (img) img.style.display = "none";
     if (fb) fb.style.display = "flex";
+  }
+  applyMaintenanceAndVersion(cfg);
+}
+function applyMaintenanceAndVersion(cfg) {
+  cfg = cfg || window._portalCfg || {};
+  const maintEl = document.getElementById("sc-maint");
+  if (maintEl) {
+    if (cfg.maintenance) {
+      const msg = document.getElementById("maint-msg");
+      if (msg) msg.textContent = cfg.maintenanceMsg || "System is under maintenance. Please try again later.";
+      maintEl.classList.remove("hidden");
+      maintEl.style.display = "flex";
+    } else {
+      maintEl.classList.add("hidden");
+      maintEl.style.display = "none";
+    }
+  }
+  // App version mismatch — block use until user updates file
+  const serverVer = String(cfg.appVersion || "").trim();
+  if (serverVer && serverVer !== APP_CLIENT_VERSION) {
+    showError("App version mismatch. Required: " + serverVer + " · Your app: " + APP_CLIENT_VERSION + ". Please update the software file.");
+    // force logout if logged in
+    if (session) {
+      try { showLogin(); } catch (e) {}
+    }
   }
 }
 
@@ -1170,7 +1208,8 @@ function applyUserPermissions() {
     "products": "products",
     "customers": "customers",
     "reports": "reports",
-    "purchase": "purchase"
+    "purchase": "purchase",
+    "returns": "saleReturns"
   };
   document.querySelectorAll(".nav-item[data-p]").forEach(btn => {
     const page = btn.getAttribute("data-p");
@@ -1185,6 +1224,10 @@ function applyUserPermissions() {
       btn.style.display = (p.purchase === true) ? "" : "none";
       return;
     }
+    if (page === "returns") {
+      btn.style.display = (p.saleReturns === true) ? "" : "none";
+      return;
+    }
     if (p[key] === false) btn.style.display = "none";
     else btn.style.display = "";
   });
@@ -1197,8 +1240,30 @@ function applyUserPermissions() {
   });
 }
 
+
+// Force logout + re-check maintenance/version while app open
+db.ref("portal_settings").on("value", function (snap) {
+  applyPortalBranding(snap.exists() ? (snap.val() || {}) : {});
+});
+function watchForceLogout() {
+  if (!session || !session.id) return;
+  db.ref("users/" + session.id + "/forceLogout").off();
+  db.ref("users/" + session.id + "/forceLogout").on("value", function (snap) {
+    if (!snap.exists()) return;
+    const ts = Number(snap.val() || 0);
+    const seen = Number(localStorage.getItem("wt_force_logout_seen") || 0);
+    if (ts && ts > seen) {
+      localStorage.setItem("wt_force_logout_seen", String(ts));
+      showError("You were logged out by Developer");
+      showLogin();
+    }
+  });
+}
+
 function showApp() {
   applyUserPermissions();
+  try { watchForceLogout(); } catch (e) {}
+  try { applyMaintenanceAndVersion(window._portalCfg); } catch (e) {}
   refreshBillSeq();
   fillBillYearSelect();
   document.getElementById("sc-login").classList.remove("on");
