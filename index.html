@@ -286,6 +286,7 @@
       </button>
       <button class="nav-item on" data-p="sale"><i class="fa-solid fa-cart-shopping w-5 text-amber-600"></i><span class="nav-label">New Sale</span></button>
       <button class="nav-item" data-p="bills"><i class="fa-solid fa-file-lines w-5 text-sky-600"></i><span class="nav-label">Bills</span></button>
+      <button class="nav-item" data-p="returns"><i class="fa-solid fa-rotate-left w-5 text-rose-600"></i><span class="nav-label">Sale Return</span></button>
       <button class="nav-item" data-p="customers"><i class="fa-solid fa-users w-5 text-emerald-600"></i><span class="nav-label">Customers</span></button>
       <button class="nav-item" data-p="products"><i class="fa-solid fa-box w-5 text-violet-600"></i><span class="nav-label">Products</span></button>
       <button class="nav-item" data-p="purchase" style="display:none"><i class="fa-solid fa-truck w-5 text-lime-600"></i><span class="nav-label">Purchasing</span></button>
@@ -390,6 +391,32 @@
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      
+      <section id="pg-returns" class="pg hidden">
+        <h2 class="text-lg font-black mb-1">Sale Return</h2>
+        <p class="text-[11px] text-slate-500 mb-3">Select a bill, set return qty, save return</p>
+        <div class="card p-3 mb-3 space-y-2">
+          <div class="label">Search bill no / customer</div>
+          <input id="ret-q" placeholder="Bill no or customer name" class="mb-1">
+          <div id="ret-bill-list" class="max-h-40 overflow-y-auto border border-slate-100 rounded-lg text-sm"></div>
+        </div>
+        <div id="ret-detail" class="card p-3 hidden">
+          <div class="font-bold mb-2" id="ret-bill-label">—</div>
+          <div id="ret-items" class="space-y-2 mb-3"></div>
+          <div class="flex justify-between text-sm mb-2"><span>Return total</span><b id="ret-total">0.00</b></div>
+          <div class="label">Reason (optional)</div>
+          <input id="ret-reason" placeholder="Damaged / wrong item…" class="mb-2">
+          <button type="button" id="ret-save" class="btn btn-primary w-full">Save Return</button>
+        </div>
+        <h3 class="text-sm font-bold mt-4 mb-2 text-slate-600">Recent returns</h3>
+        <div class="card overflow-hidden">
+          <table>
+            <thead><tr><th>Date</th><th>Bill</th><th>Customer</th><th class="text-right">Amount</th></tr></thead>
+            <tbody id="ret-history"></tbody>
+          </table>
         </div>
       </section>
 
@@ -867,6 +894,8 @@ function fillBillYearSelect() {
 
 let customers = {};
 let purchases = {};
+let saleReturns = {};
+let returnBillId = null;
 let bills = {};
 let cart = [];
 let shop = { name: "WAQAR TRADER", address: "DAULTALA", phone: "" };
@@ -1373,6 +1402,7 @@ function go(page) {
   document.getElementById("pg-" + page).classList.remove("hidden");
   document.querySelectorAll(".nav-item").forEach(b => b.classList.toggle("on", b.getAttribute("data-p") === page));
   if (page === "bills") renderBills();
+  if (page === "returns") { renderReturnBillList(); renderReturnHistory(); }
   if (page === "customers") renderCusts();
   if (page === "purchase") renderPurchases();
   if (page === "products") {
@@ -1435,6 +1465,18 @@ function attachListeners() {
   try { db.ref("purchases").off(); } catch (e) {}
   db.ref("customers").once("value").then(applyCustomersSnap).catch(e => { console.error(e); setConn(false); });
   db.ref("customers").on("value", applyCustomersSnap, err => { console.error(err); setConn(false); });
+
+  // Sale returns
+  db.ref("sale_returns").off();
+  db.ref("sale_returns").on("value", snap => {
+    const m = {};
+    if (snap.exists()) {
+      const val = snap.val() || {};
+      Object.keys(val).forEach(k => { m[k] = Object.assign({ id: k }, val[k] || {}); });
+    }
+    saleReturns = m;
+    try { if (!document.getElementById("pg-returns").classList.contains("hidden")) renderReturnHistory(); } catch (e) {}
+  });
 
   // Purchases (admin)
   db.ref("purchases").off();
@@ -2331,6 +2373,127 @@ function renderPurchases() {
   if (f) f.onchange = renderPurchases;
   if (t) t.onchange = renderPurchases;
   if (q) q.oninput = renderPurchases;
+})();
+
+
+
+// ========== SALE RETURN ==========
+function renderReturnBillList() {
+  const q = ((document.getElementById("ret-q") && document.getElementById("ret-q").value) || "").toLowerCase();
+  const box = document.getElementById("ret-bill-list");
+  if (!box) return;
+  let list = Object.values(bills).filter(b => !b.cancelled);
+  if (q) {
+    list = list.filter(b =>
+      String(b.billNo || "").toLowerCase().includes(q) ||
+      String(b.customerName || "").toLowerCase().includes(q)
+    );
+  }
+  list = list.sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 30);
+  box.innerHTML = list.map(b =>
+    '<div class="px-3 py-2 border-b border-slate-50 hover:bg-amber-50 cursor-pointer text-xs" data-rbid="' + b.id + '">'
+    + '<b>' + (b.billNo || "—") + '</b> · ' + (b.date || "") + ' · ' + (b.customerName || "Walk-in")
+    + ' · <span class="font-bold">' + money(b.grandTotal) + '</span></div>'
+  ).join("") || '<div class="p-3 text-slate-400 text-center">No bills</div>';
+  box.querySelectorAll("[data-rbid]").forEach(el => {
+    el.onclick = () => selectReturnBill(el.getAttribute("data-rbid"));
+  });
+}
+function selectReturnBill(id) {
+  returnBillId = id;
+  const b = bills[id];
+  if (!b) return;
+  document.getElementById("ret-detail").classList.remove("hidden");
+  document.getElementById("ret-bill-label").textContent = (b.billNo || "") + " · " + (b.customerName || "Walk-in") + " · " + money(b.grandTotal);
+  const items = b.items || [];
+  document.getElementById("ret-items").innerHTML = items.map((it, i) =>
+    '<div class="flex items-center gap-2 text-sm border border-slate-100 rounded-lg p-2">'
+    + '<div class="flex-1 min-w-0"><div class="font-semibold truncate">' + (it.name || "") + '</div>'
+    + '<div class="text-[10px] text-slate-400">Sold qty ' + it.qty + ' · ' + money(it.rate) + '</div></div>'
+    + '<input type="number" min="0" max="' + it.qty + '" value="0" class="ret-qty w-16 text-center" data-ri="' + i + '">'
+    + '</div>'
+  ).join("") || '<div class="text-slate-400">No items</div>';
+  document.querySelectorAll(".ret-qty").forEach(inp => {
+    inp.oninput = calcReturnTotal;
+  });
+  calcReturnTotal();
+}
+function calcReturnTotal() {
+  const b = bills[returnBillId];
+  if (!b) return 0;
+  let total = 0;
+  document.querySelectorAll(".ret-qty").forEach(inp => {
+    const i = Number(inp.getAttribute("data-ri"));
+    const it = (b.items || [])[i];
+    if (!it) return;
+    const q = Math.min(Number(it.qty || 0), Math.max(0, Number(inp.value) || 0));
+    total += q * Number(it.rate || 0);
+  });
+  const el = document.getElementById("ret-total");
+  if (el) el.textContent = money(total);
+  return total;
+}
+function renderReturnHistory() {
+  const body = document.getElementById("ret-history");
+  if (!body) return;
+  const list = Object.values(saleReturns || {}).sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 50);
+  body.innerHTML = list.map(r =>
+    '<tr><td>' + (r.date || "") + '</td><td>' + (r.billNo || "—") + '</td><td>' + (r.customerName || "—") + '</td>'
+    + '<td class="text-right font-bold text-rose-700">' + money(r.total) + '</td></tr>'
+  ).join("") || '<tr><td colspan="4" class="text-center text-slate-400 py-6">No returns yet</td></tr>';
+}
+(function () {
+  const q = document.getElementById("ret-q");
+  if (q) q.oninput = renderReturnBillList;
+  const save = document.getElementById("ret-save");
+  if (!save) return;
+  save.onclick = async function () {
+    const b = bills[returnBillId];
+    if (!b) { showError("Select a bill"); return; }
+    const items = [];
+    let total = 0;
+    document.querySelectorAll(".ret-qty").forEach(inp => {
+      const i = Number(inp.getAttribute("data-ri"));
+      const it = (b.items || [])[i];
+      if (!it) return;
+      const q = Math.min(Number(it.qty || 0), Math.max(0, Number(inp.value) || 0));
+      if (q <= 0) return;
+      const amount = q * Number(it.rate || 0);
+      total += amount;
+      items.push({ name: it.name, code: it.code, qty: q, rate: it.rate, amount, productId: it.productId || null });
+    });
+    if (!items.length) { showError("Enter return quantity"); return; }
+    const data = {
+      billId: returnBillId,
+      billNo: b.billNo || "",
+      customerId: b.customerId || null,
+      customerName: b.customerName || "",
+      items,
+      total,
+      reason: (document.getElementById("ret-reason") && document.getElementById("ret-reason").value || "").trim(),
+      date: today(),
+      ts: Date.now(),
+      cashierId: session ? session.id : null,
+      cashierName: session ? (session.name || session.username) : ""
+    };
+    try {
+      await fpush("sale_returns", data);
+      // reduce customer balance if credit bill had balance
+      if (b.customerId && Number(b.balance) > 0) {
+        const reduce = Math.min(Number(b.balance), total);
+        if (reduce > 0) {
+          await db.ref("customers/" + b.customerId + "/balance").transaction(bal => Math.max(0, Number(bal || 0) - reduce));
+        }
+      }
+      toast("Return saved · " + money(total));
+      document.getElementById("ret-detail").classList.add("hidden");
+      returnBillId = null;
+      renderReturnHistory();
+    } catch (e) {
+      console.error(e);
+      showError("Return save failed");
+    }
+  };
 })();
 
 
