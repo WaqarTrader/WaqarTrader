@@ -173,7 +173,9 @@
   .err-modal{position:fixed;inset:0;z-index:400;background:rgba(15,23,42,.5);display:none;align-items:center;justify-content:center;padding:16px}
   .err-modal.on{display:flex}
   .err-box{width:100%;max-width:380px;background:#fff;border-radius:16px;padding:24px;box-shadow:0 24px 60px rgba(0,0,0,.2);text-align:center;border-top:4px solid #b91c1c}
-  .live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;margin-right:5px;animation:pulse-live 1.4s ease-in-out infinite}
+  .live-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;margin-right:4px;animation:pulse-live 1.2s ease-in-out infinite;box-shadow:0 0 0 0 rgba(34,197,94,.5)}
+  .live-dot.off{background:#ef4444;animation:pulse-live-red 1.2s ease-in-out infinite;box-shadow:0 0 0 0 rgba(239,68,68,.45)}
+  @keyframes pulse-live-red{0%{box-shadow:0 0 0 0 rgba(239,68,68,.45)}70%{box-shadow:0 0 0 8px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
   @keyframes pulse-live{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.85)}}
   .hdr-meta{font-size:11px;color:#64748b;line-height:1.35}
   #product-panel{max-height:280px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
@@ -235,7 +237,7 @@
     <p id="key-hint" class="text-[11px] text-center text-amber-800 hidden mb-2">Software key required every 3 months — contact developer</p>
     <button id="btn-login" class="login-btn" type="button">SIGN IN</button>
     <p id="login-err" class="text-red-600 text-xs text-center mt-3 hidden"></p>
-    <div class="login-foot">WAQAR TRADER · DAULTALA · V2.0<br>© Waqar Trader Cosmetics</div>
+    <div class="login-foot">WAQAR TRADER · DAULTALA · V3.0<br>© Waqar Trader Cosmetics</div>
   </div>
 </div>
 
@@ -247,9 +249,9 @@
       <div>
         <div class="font-black text-sm text-slate-900 flex items-center gap-2 flex-wrap">
           WAQAR TRADER <span class="text-amber-700 text-xs">DAULTALA</span>
-          <span class="text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-900 text-white">V2.0</span>
-          <span id="live-status" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <span class="live-dot"></span>Chal raha hai
+          <span class="text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-900 text-white">V3.0</span>
+          <span id="live-status" class="inline-flex items-center" title="Online">
+            <span class="live-dot" id="live-dot"></span>
           </span>
         </div>
         <div class="hdr-meta">
@@ -258,9 +260,22 @@
         </div>
       </div>
     </div>
-    <div class="flex items-center gap-2">
-      <span class="text-[10px] font-bold px-2 py-1 rounded-full bg-amber-50 text-amber-800">Ctrl+S Save</span>
-      <button id="btn-out" class="btn btn-ghost text-xs">Logout</button>
+    <div class="flex items-center gap-2 relative">
+      <div id="user-menu-wrap" class="relative">
+        <button type="button" id="btn-user-menu" class="btn btn-ghost text-xs inline-flex items-center gap-1.5">
+          <i class="fa-solid fa-user text-slate-500"></i>
+          <span id="hdr-user-label">User</span>
+          <i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
+        </button>
+        <div id="user-menu-dd" class="hidden absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg border border-slate-200 bg-white shadow-lg py-1">
+          <button type="button" id="btn-change-pass" class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+            <i class="fa-solid fa-key w-4 text-amber-600"></i> Change Password
+          </button>
+          <button type="button" id="btn-out" class="w-full text-left px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50">
+            <i class="fa-solid fa-right-from-bracket w-4"></i> Logout
+          </button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -273,6 +288,7 @@
       <button class="nav-item" data-p="bills"><i class="fa-solid fa-file-lines w-5 text-sky-600"></i><span class="nav-label">Bills</span></button>
       <button class="nav-item" data-p="customers"><i class="fa-solid fa-users w-5 text-emerald-600"></i><span class="nav-label">Customers</span></button>
       <button class="nav-item" data-p="products"><i class="fa-solid fa-box w-5 text-violet-600"></i><span class="nav-label">Products</span></button>
+      <button class="nav-item" data-p="purchase" style="display:none"><i class="fa-solid fa-truck w-5 text-lime-600"></i><span class="nav-label">Purchasing</span></button>
       <button class="nav-item" data-p="summary"><i class="fa-solid fa-chart-column w-5 text-rose-600"></i><span class="nav-label">Summary</span></button>
       <button class="nav-item" data-p="reports" style="display:none"><i class="fa-solid fa-chart-pie w-5 text-indigo-600"></i><span class="nav-label">Reports</span></button>
       <button class="nav-item" data-p="support"><i class="fa-solid fa-headset w-5 text-cyan-600"></i><span class="nav-label">Complaints</span></button>
@@ -415,6 +431,23 @@
           <table>
             <thead><tr><th>Name</th><th>Code</th><th>Category</th><th>Sale</th><th>Unit</th></tr></thead>
             <tbody id="prod-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      
+      <section id="pg-purchase" class="pg hidden">
+        <h2 class="text-lg font-black mb-1">Purchasing <span class="text-xs font-normal text-slate-400">(from Admin)</span></h2>
+        <p class="text-[11px] text-slate-500 mb-3">Purchase bills entered by Admin · view only</p>
+        <div class="flex flex-wrap gap-2 mb-3">
+          <input type="date" id="pur-from" class="text-sm max-w-[140px]">
+          <input type="date" id="pur-to" class="text-sm max-w-[140px]">
+          <input id="pur-q" class="text-sm max-w-[180px]" placeholder="Search supplier / ref">
+        </div>
+        <div class="card overflow-hidden">
+          <table>
+            <thead><tr><th>Ref</th><th>Date</th><th>Supplier</th><th class="text-right">Total</th><th></th></tr></thead>
+            <tbody id="pur-body"></tbody>
           </table>
         </div>
       </section>
@@ -677,6 +710,30 @@
   </div>
 </div>
 
+
+<!-- Change password -->
+<div id="md-pass" class="modal">
+  <div class="modal-box space-y-3" style="max-width:360px">
+    <div class="font-black text-base">Change Password</div>
+    <div>
+      <div class="label">Current password</div>
+      <input id="pw-old" type="password" placeholder="Current password" autocomplete="current-password">
+    </div>
+    <div>
+      <div class="label">New password</div>
+      <input id="pw-new" type="password" placeholder="New password" autocomplete="new-password">
+    </div>
+    <div>
+      <div class="label">Confirm new password</div>
+      <input id="pw-new2" type="password" placeholder="Confirm new password" autocomplete="new-password">
+    </div>
+    <div class="flex gap-2 pt-1">
+      <button type="button" id="pw-cancel" class="btn btn-ghost flex-1">Cancel</button>
+      <button type="button" id="pw-save" class="btn btn-primary flex-1">Update</button>
+    </div>
+  </div>
+</div>
+
 <div id="md-cust" class="modal"><div class="modal-box space-y-3">
   <div class="font-black text-lg">New Customer</div>
   <div><div class="label">Name *</div><input id="c-name"></div>
@@ -809,6 +866,7 @@ function fillBillYearSelect() {
 
 
 let customers = {};
+let purchases = {};
 let bills = {};
 let cart = [];
 let shop = { name: "WAQAR TRADER", address: "DAULTALA", phone: "" };
@@ -861,9 +919,16 @@ function today() {
 function setConn(ok) {
   connected = ok;
   const el = document.getElementById("connStatus");
-  if (!el) return;
-  el.textContent = ok ? "Online" : "Offline";
-  el.className = "conn " + (ok ? "ok" : "bad");
+  if (el) {
+    el.textContent = ok ? "Online" : "Offline";
+    el.className = "conn " + (ok ? "ok" : "bad");
+  }
+  const dot = document.getElementById("live-dot");
+  const wrap = document.getElementById("live-status");
+  if (dot) {
+    dot.classList.toggle("off", !ok);
+  }
+  if (wrap) wrap.title = ok ? "Online" : "Offline";
 }
 
 // Connection monitor
@@ -1055,6 +1120,7 @@ function showLogin() {
   // detach
   db.ref("products").off();
   db.ref("customers").off();
+  try { db.ref("purchases").off(); } catch (e) {}
   db.ref("bills").off();
   db.ref("shop_settings").off();
   db.ref("meta/lastBillNo").off();
@@ -1074,7 +1140,8 @@ function applyUserPermissions() {
     "bills": "bills",
     "products": "products",
     "customers": "customers",
-    "reports": "reports"
+    "reports": "reports",
+    "purchase": "purchase"
   };
   document.querySelectorAll(".nav-item[data-p]").forEach(btn => {
     const page = btn.getAttribute("data-p");
@@ -1083,6 +1150,10 @@ function applyUserPermissions() {
     // reports default HIDDEN unless explicitly true
     if (page === "reports") {
       btn.style.display = (p.reports === true) ? "" : "none";
+      return;
+    }
+    if (page === "purchase") {
+      btn.style.display = (p.purchase === true) ? "" : "none";
       return;
     }
     if (p[key] === false) btn.style.display = "none";
@@ -1106,6 +1177,8 @@ function showApp() {
   document.getElementById("sc-app").classList.add("on");
   document.getElementById("sc-app").style.display = "flex";
   document.getElementById("hdr-name").textContent = session.name || session.username;
+  const ul = document.getElementById("hdr-user-label");
+  if (ul) ul.textContent = session.name || session.username || "User";
   document.getElementById("disc-max").textContent = session.discountLimit || 5;
   if (!session.lastLogin) {
     const stored = Number(localStorage.getItem("wt_last_login") || 0);
@@ -1223,7 +1296,65 @@ document.getElementById("btn-login").onclick = function () {
     showError("Firebase error — check connection / Rules");
   });
 };
-document.getElementById("btn-out").onclick = showLogin;
+
+// ========== USER MENU + CHANGE PASSWORD ==========
+(function () {
+  const btn = document.getElementById("btn-user-menu");
+  const dd = document.getElementById("user-menu-dd");
+  if (btn && dd) {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      dd.classList.toggle("hidden");
+    };
+    document.addEventListener("click", function () {
+      dd.classList.add("hidden");
+    });
+    dd.onclick = function (e) { e.stopPropagation(); };
+  }
+  const cp = document.getElementById("btn-change-pass");
+  if (cp) cp.onclick = function () {
+    if (dd) dd.classList.add("hidden");
+    document.getElementById("pw-old").value = "";
+    document.getElementById("pw-new").value = "";
+    document.getElementById("pw-new2").value = "";
+    document.getElementById("md-pass").classList.add("on");
+  };
+  const pc = document.getElementById("pw-cancel");
+  if (pc) pc.onclick = function () {
+    document.getElementById("md-pass").classList.remove("on");
+  };
+  const ps = document.getElementById("pw-save");
+  if (ps) ps.onclick = async function () {
+    if (!session || !session.id) { showError("Not logged in"); return; }
+    const oldP = (document.getElementById("pw-old").value || "");
+    const n1 = (document.getElementById("pw-new").value || "");
+    const n2 = (document.getElementById("pw-new2").value || "");
+    if (!oldP || !n1) { showError("Enter current and new password"); return; }
+    if (n1 !== n2) { showError("New passwords do not match"); return; }
+    if (n1.length < 4) { showError("New password at least 4 characters"); return; }
+    try {
+      const snap = await db.ref("users/" + session.id).once("value");
+      if (!snap.exists()) { showError("User not found"); return; }
+      const u = snap.val() || {};
+      const current = String(u.password || "");
+      if (current !== oldP) { showError("Current password is incorrect"); return; }
+      await db.ref("users/" + session.id + "/password").set(n1);
+      session.password = n1;
+      try { localStorage.setItem("wt_user_session", JSON.stringify(session)); } catch (e) {}
+      document.getElementById("md-pass").classList.remove("on");
+      toast("Password updated");
+    } catch (e) {
+      console.error(e);
+      showError("Could not update password");
+    }
+  };
+})();
+
+document.getElementById("btn-out").onclick = function () {
+  const dd = document.getElementById("user-menu-dd");
+  if (dd) dd.classList.add("hidden");
+  showLogin();
+};
 
 // Restore session — refresh / reopen = auto login (until manual logout)
 try {
@@ -1243,6 +1374,7 @@ function go(page) {
   document.querySelectorAll(".nav-item").forEach(b => b.classList.toggle("on", b.getAttribute("data-p") === page));
   if (page === "bills") renderBills();
   if (page === "customers") renderCusts();
+  if (page === "purchase") renderPurchases();
   if (page === "products") {
     // Force fresh pull so Admin-added products appear immediately
     db.ref("products").once("value").then(applyProductsSnap).catch(() => {});
@@ -1299,15 +1431,15 @@ function attachListeners() {
   db.ref("products").on("value", applyProductsSnap, err => { console.error(err); setConn(false); });
 
   // Customers
-  db.ref("customers").on("value", snap => {
-    const m = {};
-    if (snap.exists()) {
-      snap.forEach(c => m[c.key] = Object.assign({ id: c.key }, c.val()));
-    }
-    customers = m;
-    fillCust();
-    if (!document.getElementById("pg-customers").classList.contains("hidden")) renderCusts();
-  });
+  db.ref("customers").off();
+  try { db.ref("purchases").off(); } catch (e) {}
+  db.ref("customers").once("value").then(applyCustomersSnap).catch(e => { console.error(e); setConn(false); });
+  db.ref("customers").on("value", applyCustomersSnap, err => { console.error(err); setConn(false); });
+
+  // Purchases (admin)
+  db.ref("purchases").off();
+  db.ref("purchases").once("value").then(applyPurchasesSnap).catch(e => { console.error(e); });
+  db.ref("purchases").on("value", applyPurchasesSnap, err => { console.error(err); });
 
   // Bills — full list, no limit (all vouchers from Firebase)
   db.ref("bills").on("value", snap => {
@@ -1424,6 +1556,20 @@ function checkNewChangelogPopup(m) {
 
 
 
+function applyCustomersSnap(snap) {
+  const m = {};
+  if (snap && snap.exists()) {
+    const val = snap.val() || {};
+    Object.keys(val).forEach(function (k) {
+      m[k] = Object.assign({ id: k }, val[k] || {});
+    });
+  }
+  customers = m;
+  try { fillCust(); } catch (e) {}
+  try {
+    if (!document.getElementById("pg-customers").classList.contains("hidden")) renderCusts();
+  } catch (e) {}
+}
 function fillCust() {
   const sel = document.getElementById("sale-cust");
   const cur = sel.value;
@@ -1468,22 +1614,52 @@ document.getElementById("btn-new-cust").onclick = openCust;
 document.getElementById("btn-cust-add").onclick = openCust;
 document.getElementById("c-cancel").onclick = () => document.getElementById("md-cust").classList.remove("on");
 document.getElementById("c-save").onclick = async function () {
-  const name = (document.getElementById("c-name").value || "").trim();
+  const name = (document.getElementById("c-name").value || "").trim().toUpperCase();
   if (!name) { showError("Name required"); return; }
-  const data = {
-    name,
-    phone: (document.getElementById("c-phone").value || "").trim(),
-    address: (document.getElementById("c-addr").value || "").trim(),
-    balance: 0,
-    createdAt: Date.now(),
-    createdBy: session.id
-  };
+  const phone = (document.getElementById("c-phone").value || "").trim();
+  const address = (document.getElementById("c-addr").value || "").trim().toUpperCase();
+
+  // Same name = same customer (no duplicate)
+  let existingId = null;
+  Object.keys(customers || {}).forEach(function (k) {
+    const c = customers[k];
+    if (c && String(c.name || "").trim().toUpperCase() === name) existingId = k;
+  });
+
   try {
-    const id = await fpush("customers", data);
-    toast("Customer saved");
+    let id = existingId;
+    if (existingId) {
+      // Reuse existing — optional update phone/address if provided
+      const patch = {};
+      if (phone) patch.phone = phone;
+      if (address) patch.address = address;
+      if (Object.keys(patch).length) {
+        await db.ref("customers/" + existingId).update(patch);
+        customers[existingId] = Object.assign({}, customers[existingId], patch);
+      }
+      toast("Existing customer selected");
+    } else {
+      const data = {
+        name,
+        phone,
+        address,
+        balance: 0,
+        createdAt: Date.now(),
+        createdBy: session ? session.id : null
+      };
+      id = await fpush("customers", data);
+      customers[id] = Object.assign({ id: id }, data);
+      toast("Customer saved");
+    }
+    fillCust();
+    renderCusts();
     document.getElementById("md-cust").classList.remove("on");
-    setTimeout(() => { document.getElementById("sale-cust").value = id; }, 150);
+    setTimeout(function () {
+      const sel = document.getElementById("sale-cust");
+      if (sel && id) sel.value = id;
+    }, 100);
   } catch (e) {
+    console.error(e);
     showError("Save failed — check Firebase Rules");
     setConn(false);
   }
@@ -1588,7 +1764,7 @@ function addLine(pid) {
   let idx = cart.findIndex(x => x.productId === pid);
   if (idx >= 0) {
     cart[idx].qty++;
-    cart[idx].disc = 0; // V2.0 locked
+    cart[idx].disc = 0; // discount locked
   } else {
     cart.push({
       productId: pid,
@@ -1596,7 +1772,7 @@ function addLine(pid) {
       code: p.code || "",
       category: p.category || "",
       rate: Number(p.salePrice || 0),
-      // V2.0: line discount locked at 0
+      // line discount locked at 0
       qty: 1,
       disc: 0
     });
@@ -1651,7 +1827,7 @@ function renderCart() {
         cart[i].rate = Math.max(0, v);
       }
       if (f === "disc") {
-        // locked in V2.0 — ignore edits
+        // discount locked — ignore edits
         cart[i].disc = 0;
         inp.value = 0;
         return;
@@ -2103,6 +2279,60 @@ document.getElementById("btn-all-bills").onclick = () => {
   document.getElementById("bill-q").value = "";
   renderBills();
 };
+
+
+// ========== PURCHASES (Admin entries — view) ==========
+function applyPurchasesSnap(snap) {
+  const m = {};
+  if (snap && snap.exists()) {
+    const val = snap.val() || {};
+    Object.keys(val).forEach(function (k) {
+      m[k] = Object.assign({ id: k }, val[k] || {});
+    });
+  }
+  purchases = m;
+  try {
+    if (!document.getElementById("pg-purchase").classList.contains("hidden")) renderPurchases();
+  } catch (e) {}
+}
+function renderPurchases() {
+  const body = document.getElementById("pur-body");
+  if (!body) return;
+  const from = (document.getElementById("pur-from") && document.getElementById("pur-from").value) || "";
+  const to = (document.getElementById("pur-to") && document.getElementById("pur-to").value) || "";
+  const q = ((document.getElementById("pur-q") && document.getElementById("pur-q").value) || "").toLowerCase();
+  let list = Object.values(purchases);
+  list = list.filter(function (p) {
+    const d = p.date || (p.ts ? new Date(p.ts).toISOString().slice(0, 10) : "");
+    if (from && d && d < from) return false;
+    if (to && d && d > to) return false;
+    if (q) {
+      const hay = [p.purchaseNo, p.refNo, p.supplier, p.invoiceNo, p.notes].join(" ").toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  }).sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
+  body.innerHTML = list.map(function (p) {
+    const items = (p.items || []).map(function (i) {
+      return (i.name || "") + " ×" + (i.qty || 0);
+    }).join(", ");
+    return '<tr>'
+      + '<td class="font-semibold text-amber-800">' + (p.purchaseNo || p.refNo || "—") + '</td>'
+      + '<td>' + (p.date || "—") + '</td>'
+      + '<td>' + (p.supplier || "—") + '<div class="text-[10px] text-slate-400">' + (items || "").slice(0, 60) + '</div></td>'
+      + '<td class="text-right font-bold">' + money(p.total) + '</td>'
+      + '<td></td></tr>';
+  }).join("") || '<tr><td colspan="5" class="text-center text-slate-400 py-8">No purchase bills</td></tr>';
+}
+(function () {
+  const f = document.getElementById("pur-from");
+  const t = document.getElementById("pur-to");
+  const q = document.getElementById("pur-q");
+  if (f) f.onchange = renderPurchases;
+  if (t) t.onchange = renderPurchases;
+  if (q) q.oninput = renderPurchases;
+})();
+
 
 // ========== CUSTOMERS ==========
 function renderCusts() {
